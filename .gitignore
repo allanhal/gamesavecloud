@@ -1,0 +1,12 @@
+
+# desktop build output
+*.blockmap
+*.exe
+.env
+.env*.local
+.next
+.vercel
+apps/desktop/dist
+apps/desktop/release
+node_modules
+tsconfig.tsbuildinfo

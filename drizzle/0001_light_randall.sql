@@ -1,0 +1,1 @@
+ALTER TABLE "blobs" ADD COLUMN "codec" text DEFAULT 'raw' NOT NULL;

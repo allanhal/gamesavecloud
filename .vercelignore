@@ -1,0 +1,8 @@
+# desktop build artifacts live in R2, never in the deployment
+apps/desktop/release
+apps/desktop/dist
+apps/desktop/node_modules
+**/*.exe
+**/*.blockmap
+.next
+node_modules

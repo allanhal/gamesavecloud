@@ -1,0 +1,9 @@
+{
+  "name": "@gsc/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": { "gamesync": "./src/index.ts" },
+  "scripts": { "start": "tsx src/index.ts" },
+  "dependencies": { "@gsc/core": "workspace:*", "@gsc/recipes": "workspace:*" },
+  "devDependencies": { "tsx": "^4.19.2", "@types/node": "^22.10.2", "typescript": "^5.7.2" }
+}

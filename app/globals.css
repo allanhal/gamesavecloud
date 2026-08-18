@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: oklch(0.16 0.01 260);
+  --color-panel: oklch(0.21 0.012 260);
+  --color-line: oklch(0.30 0.015 260);
+  --color-ink: oklch(0.95 0.005 260);
+  --color-muted: oklch(0.68 0.012 260);
+  --color-accent: oklch(0.70 0.16 155);
+  --color-warn: oklch(0.75 0.15 70);
+  --color-danger: oklch(0.65 0.19 25);
+}
+
+html, body { background: var(--color-bg); color: var(--color-ink); }
