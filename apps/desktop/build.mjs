@@ -6,7 +6,7 @@ const common = { bundle: true, platform: "node", target: "node20", sourcemap: tr
 // main + preload run in Node; electron itself stays external
 await esbuild.build({
   ...common, entryPoints: ["src/main.ts"], outfile: "dist/main.cjs",
-  format: "cjs", external: ["electron"],
+  format: "cjs", external: ["electron", "electron-updater"],
 });
 await esbuild.build({
   ...common, entryPoints: ["src/preload.ts"], outfile: "dist/preload.cjs",

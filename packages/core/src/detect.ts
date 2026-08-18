@@ -80,7 +80,8 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
     if (out.some((o) => o.id === (recipe?.id ?? slugify(g.name)))) continue;  // already found via Steam
     out.push({
       id: recipe?.id ?? slugify(g.name), name: g.name, source: "epic",
-      installDir: g.installDir, savePath, tier, reason,
+      // AppName is what com.epicgames.launcher://apps/<id> needs to launch
+      appId: g.appName, installDir: g.installDir, savePath, tier, reason,
     });
   }
 

@@ -6,7 +6,7 @@ import readline from "node:readline/promises";
 import {
   loadConfig, saveConfig, defaultConfig, configPath, loadState, stateKey,
   Api, syncGame, detectGames, toGameConfig, scanDir, manifestHashSync,
-  launchGame, waitForExit, isGameRunning,
+  launchGame, waitForExit, isGameRunning, findSaveCandidates, renderRecipe,
   type Config, type GameConfig,
 } from "@gsc/core";
 
@@ -296,11 +296,58 @@ async function cmdWatch(args: string[]) {
   }
 }
 
+/**
+ * Finds where a game actually saves on THIS machine and prints a recipe for it.
+ * Guessing paths is how you end up syncing the wrong folder.
+ */
+async function cmdFindSaves(args: string[]) {
+  const name = args.filter((a) => !a.startsWith("-")).join(" ");
+  if (!name) { console.error("usage: gamesync find-saves \"Detroit: Become Human\""); process.exit(1); }
+
+  // pull appId/appName straight from the launchers so the recipe is complete
+  const det = detectGames();
+  const match = det.games.find((g) => g.name.toLowerCase() === name.toLowerCase())
+    ?? det.games.find((g) => g.name.toLowerCase().includes(name.toLowerCase()));
+
+  console.log(c.dim(`searching save locations for "${name}"…`));
+  const cands = findSaveCandidates(name, {
+    extraRoots: match?.installDir ? [match.installDir] : [],
+    installDir: match?.installDir,
+  });
+
+  if (!cands.length) {
+    console.log(c.y("Nothing found."));
+    console.log(c.dim("Play the game once so it writes a save, then run this again."));
+    console.log(c.dim("Or add it manually: gamesync add \"" + name + "\" <folder>"));
+    return;
+  }
+
+  cands.forEach((cd, i) => {
+    const age = Math.round((Date.now() - cd.newestMs) / 86400000);
+    console.log(`\n${c.b(`${i + 1}.`)} ${c.g(cd.path)}`);
+    console.log(`   ${c.dim(`score ${cd.score} · ${cd.files} files · ${bytes(cd.bytes)} · newest ${age}d ago`)}`);
+    console.log(`   ${c.dim(cd.why.join(", "))}`);
+    console.log(`   ${c.c(cd.template)}`);
+  });
+
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  console.log(`\n${c.b("Recipe")} ${c.dim(`— save as packages/recipes/src/games/${id}.ts`)}\n`);
+  console.log(renderRecipe({
+    id, name: match?.name ?? name,
+    steamAppId: match?.source === "steam" ? match.appId : undefined,
+    epicAppName: match?.source === "epic" ? match.appId : undefined,
+    templates: cands.slice(0, 3).map((cd) => cd.template),
+  }));
+  if (match) console.log(c.dim(`detected via ${match.source}${match.appId ? ` · id ${match.appId}` : ""}`));
+  console.log(c.dim(`then add it to the recipes array in packages/recipes/src/index.ts`));
+}
+
 function help() {
   console.log(`${c.b("gamesync")} — self-hosted cloud saves
 
   ${c.c("init")} [server] [token]     connect this PC to your server
   ${c.c("detect")} [--all] [--yes]    scan Steam and Epic for games
+  ${c.c("find-saves")} <game name>    locate a game's save folder, print a recipe
   ${c.c("add")} <name> <folder>       add a game manually
   ${c.c("remove")} <game>             stop syncing a game on this PC
   ${c.c("list")}                      games configured here
@@ -317,7 +364,7 @@ config: ${c.dim(configPath())}`);
 
 const [cmd, ...rest] = process.argv.slice(2);
 const run: Record<string, (a: string[]) => any> = {
-  init: cmdInit, detect: cmdDetect, add: cmdAdd, remove: cmdRemove,
+  init: cmdInit, detect: cmdDetect, "find-saves": cmdFindSaves, add: cmdAdd, remove: cmdRemove,
   list: cmdList, status: cmdStatus, sync: cmdSync, history: cmdHistory,
   restore: cmdRestore, launch: cmdLaunch, watch: cmdWatch,
 };

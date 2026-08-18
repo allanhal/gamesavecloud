@@ -38,5 +38,11 @@ export async function blobExists(hash: string): Promise<number | null> {
   }
 }
 
+/** HeadObject on an arbitrary key — used by the update feed. */
+export async function blobBucketKeyExists(key: string): Promise<boolean> {
+  try { await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key })); return true; }
+  catch { return false; }
+}
+
 export const deleteBlob = (hash: string) =>
   s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: blobKey(hash) }));

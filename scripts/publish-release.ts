@@ -66,8 +66,56 @@ for (const filename of files) {
       filename = excluded.filename, key = excluded.key, size = excluded.size,
       sha256 = excluded.sha256, notes = excluded.notes, created_at = now()`;
 
-  console.log(`✓ ${sha256.slice(0, 12)}…`);
+  // blockmap enables electron-updater's differential download
+  const blockmap = `${abs}.blockmap`;
+  if (fs.existsSync(blockmap)) {
+    await new Upload({
+      client: s3,
+      params: {
+        Bucket: process.env.R2_BUCKET!, Key: `${key}.blockmap`,
+        Body: fs.createReadStream(blockmap), ContentType: "application/octet-stream",
+      },
+    }).done();
+  }
+
+  console.log(`✓ ${sha256.slice(0, 12)}…${fs.existsSync(blockmap) ? " +blockmap" : ""}`);
 }
+
+/*
+ * Write our own latest.yml instead of shipping electron-builder's.
+ * Its version points `path` at the combined multi-arch installer (169 MB), so
+ * every user would download that rather than the 78 MB build for their CPU.
+ */
+const feedFiles = files.map((filename) => {
+  const abs = path.join(RELEASE_DIR, filename);
+  const sha512 = createHash("sha512").update(fs.readFileSync(abs)).digest("base64");
+  return { url: filename, sha512, size: fs.statSync(abs).size, arch: filename.includes("-arm64-") ? "arm64" : "x64" };
+});
+const primary = feedFiles.find((f) => f.arch === "x64") ?? feedFiles[0];
+
+const yml = [
+  `version: ${version}`,
+  "files:",
+  ...feedFiles.flatMap((f) => [
+    `  - url: ${f.url}`,
+    `    sha512: ${f.sha512}`,
+    `    size: ${f.size}`,
+    `    arch: ${f.arch}`,
+  ]),
+  `path: ${primary.url}`,
+  `sha512: ${primary.sha512}`,
+  `releaseDate: '${new Date().toISOString()}'`,
+  "",
+].join("\n");
+
+await new Upload({
+  client: s3,
+  params: {
+    Bucket: process.env.R2_BUCKET!, Key: `releases/${version}/latest.yml`,
+    Body: yml, ContentType: "text/yaml",
+  },
+}).done();
+console.log(`↑ latest.yml (update feed, ${feedFiles.length} archs, default ${primary.arch})`);
 
 await sql.end();
 console.log(`\npublished v${version} — https://gamesavecloud.vercel.app/download`);

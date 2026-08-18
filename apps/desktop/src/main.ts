@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
+import { initUpdater, checkNow, installNow, getUpdateState } from "./updater";
 import fs from "node:fs";
 import {
   loadConfig, saveConfig, defaultConfig, configDir, loadState, stateKey,
@@ -209,6 +210,11 @@ ipcMain.handle("dialog:pickFolder", async () => {
 
 ipcMain.handle("shell:openConfigDir", () => shell.openPath(configDir()));
 ipcMain.handle("shell:openPath", (_e, p: string) => shell.openPath(p));
+ipcMain.handle("update:state", () => getUpdateState());
+ipcMain.handle("update:check", () => checkNow());
+ipcMain.handle("update:install", () => installNow(win));
+ipcMain.handle("app:version", () => app.getVersion());
+
 ipcMain.handle("shell:openWeb", () => {
   const cfg = loadConfig();
   if (cfg) shell.openExternal(cfg.server);
@@ -235,6 +241,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startBackgroundSync();
+  initUpdater(() => win);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

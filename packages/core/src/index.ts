@@ -7,3 +7,4 @@ export * from "./detect";
 export * from "./launch";
 export * from "./scanners/steam";
 export * from "./scanners/epic";
+export * from "./probe";

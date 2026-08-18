@@ -196,6 +196,41 @@ function History({ game, onClose }: { game: any; onClose: () => void }) {
 
 /* ── main ───────────────────────────────────────────────────────────── */
 
+function UpdateBanner() {
+  const [st, setSt] = useState<any>({ phase: "idle" });
+  const [ver, setVer] = useState("");
+
+  useEffect(() => {
+    gsc().appVersion().then(setVer);
+    gsc().updateState().then(setSt);
+    gsc().onUpdateState(setSt);
+  }, []);
+
+  if (st.phase === "downloading") {
+    return <div className="panel" style={{ padding: "8px 12px", marginBottom: 12, borderColor: "rgba(61,220,151,.4)" }}>
+      Downloading update… {st.percent}%
+    </div>;
+  }
+  if (st.phase === "ready") {
+    return <div className="panel row" style={{ padding: "8px 12px", marginBottom: 12, borderColor: "rgba(61,220,151,.4)", justifyContent: "space-between" }}>
+      <span>Update v{st.version} is ready to install.</span>
+      <button className="primary" onClick={() => gsc().installUpdate()}>Restart and update</button>
+    </div>;
+  }
+  if (st.phase === "error") {
+    return <div className="panel" style={{ padding: "8px 12px", marginBottom: 12, borderColor: "rgba(229,72,77,.4)" }}>
+      <span className="muted">Update check failed: {st.message}</span>
+    </div>;
+  }
+  return <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+    v{ver}
+    {" · "}
+    <a href="#" style={{ color: "var(--accent)" }} onClick={(e) => { e.preventDefault(); gsc().checkUpdate().then(setSt); }}>
+      {st.phase === "checking" ? "checking…" : st.phase === "none" ? "up to date — check again" : "check for updates"}
+    </a>
+  </div>;
+}
+
 function App() {
   const [cfg, setCfg] = useState<any>(undefined);
   const [games, setGames] = useState<any[]>([]);
@@ -253,6 +288,7 @@ function App() {
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
         This PC: <strong>{cfg.device}</strong> · <span className="mono">{cfg.server}</span>
       </p>
+      <UpdateBanner />
 
       {games.length === 0 && (
         <div className="panel" style={{ padding: 32, textAlign: "center", marginTop: 20 }}>

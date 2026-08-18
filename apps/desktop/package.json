@@ -1,6 +1,6 @@
 {
   "name": "@gsc/desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "gamesavecloud \u2014 cloud saves for PC games",
   "author": "gamesavecloud",
@@ -11,7 +11,9 @@
     "dist": "node build.mjs && electron-builder --win",
     "dist:dir": "node build.mjs && electron-builder --win --dir"
   },
-  "dependencies": {},
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
   "devDependencies": {
     "@gsc/core": "workspace:*",
     "@gsc/recipes": "workspace:*",
@@ -32,7 +34,23 @@
     },
     "files": [
       "dist/**/*",
-      "!dist/**/*.map"
+      "!dist/**/*.map",
+      "node_modules/electron-updater/**/*",
+      "node_modules/builder-util-runtime/**/*",
+      "node_modules/js-yaml/**/*",
+      "node_modules/lodash.escaperegexp/**/*",
+      "node_modules/lodash.isequal/**/*",
+      "node_modules/semver/**/*",
+      "node_modules/fs-extra/**/*",
+      "node_modules/graceful-fs/**/*",
+      "node_modules/jsonfile/**/*",
+      "node_modules/universalify/**/*",
+      "node_modules/lazy-val/**/*",
+      "node_modules/debug/**/*",
+      "node_modules/ms/**/*",
+      "node_modules/argparse/**/*",
+      "node_modules/sax/**/*",
+      "node_modules/tiny-typed-emitter/**/*"
     ],
     "win": {
       "target": [
@@ -52,6 +70,13 @@
       "perMachine": false,
       "shortcutName": "gamesavecloud"
     },
-    "compression": "maximum"
+    "compression": "maximum",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://gamesavecloud.vercel.app/updates/win",
+        "channel": "latest"
+      }
+    ]
   }
 }

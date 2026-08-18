@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld("gsc", {
   openPath: (p: string) => ipcRenderer.invoke("shell:openPath", p),
   openWeb: () => ipcRenderer.invoke("shell:openWeb"),
 
+  updateState: () => ipcRenderer.invoke("update:state"),
+  checkUpdate: () => ipcRenderer.invoke("update:check"),
+  installUpdate: () => ipcRenderer.invoke("update:install"),
+  appVersion: () => ipcRenderer.invoke("app:version"),
+  onUpdateState: (cb: (s: any) => void) => ipcRenderer.on("update:state", (_e, s) => cb(s)),
+
   onProgress: (cb: (p: any) => void) => ipcRenderer.on("sync:progress", (_e, p) => cb(p)),
   onDone: (cb: (r: any) => void) => ipcRenderer.on("sync:done", (_e, r) => cb(r)),
   onBackground: (cb: () => void) => ipcRenderer.on("sync:background", () => cb()),
