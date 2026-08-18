@@ -199,12 +199,21 @@ function History({ game, onClose }: { game: any; onClose: () => void }) {
 function UpdateBanner() {
   const [st, setSt] = useState<any>({ phase: "idle" });
   const [ver, setVer] = useState("");
+  const [portable, setPortable] = useState<string | null>(null);
 
   useEffect(() => {
     gsc().appVersion().then(setVer);
+    gsc().portableDir().then(setPortable);
     gsc().updateState().then(setSt);
     gsc().onUpdateState(setSt);
   }, []);
+
+  if (portable) {
+    return <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+      v{ver} · <span className="pill" style={{ color: "var(--warn)", borderColor: "rgba(232,176,75,.4)" }}>portable</span>{" "}
+      settings stored in <span className="mono">{portable}</span> — update by downloading a new zip
+    </div>;
+  }
 
   if (st.phase === "downloading") {
     return <div className="panel" style={{ padding: "8px 12px", marginBottom: 12, borderColor: "rgba(61,220,151,.4)" }}>

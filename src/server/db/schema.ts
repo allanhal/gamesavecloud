@@ -90,6 +90,8 @@ export const releases = pgTable("releases", {
   version: text("version").notNull(),
   platform: text("platform").notNull().default("win"),
   arch: text("arch").notNull(),
+  /** installer | portable | zip — only installers feed auto-update */
+  kind: text("kind").notNull().default("installer"),
   filename: text("filename").notNull(),
   /** R2 object key */
   key: text("key").notNull(),
@@ -97,4 +99,4 @@ export const releases = pgTable("releases", {
   sha256: text("sha256").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("releases_version_arch_idx").on(t.version, t.platform, t.arch)]);
+}, (t) => [uniqueIndex("releases_version_arch_kind_idx").on(t.version, t.platform, t.arch, t.kind)]);

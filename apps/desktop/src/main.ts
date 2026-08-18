@@ -3,7 +3,7 @@ import path from "node:path";
 import { initUpdater, checkNow, installNow, getUpdateState } from "./updater";
 import fs from "node:fs";
 import {
-  loadConfig, saveConfig, defaultConfig, configDir, loadState, stateKey,
+  loadConfig, saveConfig, defaultConfig, configDir, setConfigDir, isPortable, loadState, stateKey,
   Api, syncGame, detectGames, toGameConfig, scanDir, manifestHashSync,
   launchGame, waitForExit, isGameRunning,
   type Config, type GameConfig,
@@ -11,6 +11,40 @@ import {
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
+
+/**
+ * Portable mode, decided before anything reads config.
+ *
+ * - the `portable` target sets PORTABLE_EXECUTABLE_DIR for us
+ * - the zip build ships a `portable.txt` marker beside the exe
+ * - a user can also force it by creating `gamesavecloud-data` next to the exe
+ *
+ * The installed build has none of these, so it keeps using %APPDATA% and
+ * survives being replaced by an update.
+ */
+function resolvePortable(): string | null {
+  const exeDir = process.env.PORTABLE_EXECUTABLE_DIR
+    ?? (app.isPackaged ? path.dirname(app.getPath("exe")) : null);
+  if (!exeDir) return null;
+
+  const dataDir = path.join(exeDir, "gamesavecloud-data");
+  const marked = fs.existsSync(path.join(exeDir, "portable.txt")) || fs.existsSync(dataDir);
+  if (!process.env.PORTABLE_EXECUTABLE_DIR && !marked) return null;
+
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    // prove it is writable before committing — read-only media would break silently
+    const probe = path.join(dataDir, ".write-test");
+    fs.writeFileSync(probe, "ok");
+    fs.rmSync(probe);
+    return dataDir;
+  } catch {
+    return null;   // fall back to %APPDATA% rather than failing to start
+  }
+}
+
+const portableDir = resolvePortable();
+if (portableDir) setConfigDir(portableDir);
 
 function createWindow() {
   win = new BrowserWindow({
@@ -210,7 +244,8 @@ ipcMain.handle("dialog:pickFolder", async () => {
 
 ipcMain.handle("shell:openConfigDir", () => shell.openPath(configDir()));
 ipcMain.handle("shell:openPath", (_e, p: string) => shell.openPath(p));
-ipcMain.handle("update:state", () => getUpdateState());
+ipcMain.handle("app:portable", () => (isPortable() ? configDir() : null));
+ipcMain.handle("update:state", () => (isPortable() ? { phase: "portable" } : getUpdateState()));
 ipcMain.handle("update:check", () => checkNow());
 ipcMain.handle("update:install", () => installNow(win));
 ipcMain.handle("app:version", () => app.getVersion());
@@ -241,7 +276,8 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startBackgroundSync();
-  initUpdater(() => win);
+  // a portable folder cannot be replaced by the NSIS updater, so don't offer it
+  if (!isPortable()) initUpdater(() => win);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

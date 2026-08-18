@@ -70,9 +70,27 @@ pnpm cli watch                  # background daemon
 
 ```bash
 pnpm desktop                    # run it locally
-pnpm desktop:dist               # build Windows installers (x64 + arm64)
-pnpm release                    # upload them to R2 and list them on /download
+pnpm desktop:dist               # NSIS installers (x64 + arm64)
+pnpm -F @gsc/desktop dist:portable   # portable zip + single-exe builds
+pnpm -F @gsc/desktop dist:all        # both
+pnpm release                    # upload everything to R2, list it on /download
 ```
+
+Two flavours ship per release:
+
+| Flavour | Data lives in | Auto-updates |
+|---|---|---|
+| Installer (NSIS) | `%APPDATA%/gamesavecloud` | yes |
+| Portable (zip / single exe) | `gamesavecloud-data` beside the exe | no |
+
+Portable mode is detected at startup from `PORTABLE_EXECUTABLE_DIR`, a `portable.txt`
+beside the exe (shipped in the portable artifacts), or a `gamesavecloud-data` folder the
+user creates. If that folder is not writable the app falls back to `%APPDATA%` rather
+than failing to start. The installed build has none of those markers, so an update
+replacing its folder never loses your config.
+
+Auto-update is deliberately not offered in portable mode — the NSIS updater cannot
+replace an extracted directory.
 
 Cross-building the Windows installer from macOS works and needs `wine`
 (`brew install --cask wine-stable`). Output lands in `apps/desktop/release/`.

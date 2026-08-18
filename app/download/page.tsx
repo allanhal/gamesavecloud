@@ -7,8 +7,23 @@ import { Panel, Button, Empty } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 const ARCH_LABEL: Record<string, string> = {
-  x64: "Windows 11 / 10 · 64-bit (Intel or AMD)",
+  x64: "64-bit (Intel or AMD)",
   arm64: "Windows on ARM (Snapdragon, Surface Pro X)",
+};
+
+const KIND: Record<string, { title: string; blurb: string }> = {
+  installer: {
+    title: "Installer",
+    blurb: "Installs to your user folder, adds a Start menu shortcut, and updates itself.",
+  },
+  zip: {
+    title: "Portable (zip)",
+    blurb: "Extract and run — no install. Settings and sync state live in a gamesavecloud-data folder next to the exe, so the whole folder travels with you. Does not auto-update.",
+  },
+  portable: {
+    title: "Portable (single exe)",
+    blurb: "One self-extracting executable. Same portable data folder, no install. Does not auto-update.",
+  },
 };
 
 export default async function DownloadPage() {
@@ -52,18 +67,33 @@ export default async function DownloadPage() {
             <p className="mt-1 text-sm text-[var(--color-muted)]">{latestBuilds[0].notes}</p>
           )}
 
-          <div className="mt-3 space-y-3">
-            {latestBuilds.map((r) => (
-              <Panel key={r.id} className="flex flex-wrap items-center gap-4 p-4">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium">{ARCH_LABEL[r.arch] ?? r.arch}</div>
-                  <div className="mt-1 truncate font-mono text-xs text-[var(--color-muted)]">
-                    {r.filename} · {bytes(Number(r.size))}
+          <div className="mt-4 space-y-5">
+            {(["installer", "zip", "portable"] as const).map((kind) => {
+              const builds = latestBuilds.filter((b) => (b.kind ?? "installer") === kind);
+              if (!builds.length) return null;
+              const meta = KIND[kind];
+              return (
+                <div key={kind}>
+                  <h3 className="text-sm font-medium">{meta.title}</h3>
+                  <p className="mt-0.5 text-sm text-[var(--color-muted)]">{meta.blurb}</p>
+                  <div className="mt-2 space-y-2">
+                    {builds.map((r) => (
+                      <Panel key={r.id} className="flex flex-wrap items-center gap-4 p-3.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium">{ARCH_LABEL[r.arch] ?? r.arch}</div>
+                          <div className="mt-0.5 truncate font-mono text-xs text-[var(--color-muted)]">
+                            {r.filename} · {bytes(Number(r.size))}
+                          </div>
+                        </div>
+                        <a href={`/dl/${r.id}`}>
+                          <Button variant={kind === "installer" ? "default" : "ghost"}>Download</Button>
+                        </a>
+                      </Panel>
+                    ))}
                   </div>
                 </div>
-                <a href={`/dl/${r.id}`}><Button>Download</Button></a>
-              </Panel>
-            ))}
+              );
+            })}
           </div>
 
           <details className="mt-3">
@@ -72,9 +102,9 @@ export default async function DownloadPage() {
             </summary>
             <div className="mt-2 space-y-1">
               {latestBuilds.map((r) => (
-                <div key={r.id} className="overflow-x-auto">
+                <div key={r.id} className="overflow-x-auto whitespace-nowrap">
                   <code className="font-mono text-xs text-[var(--color-muted)]">
-                    {r.arch}: {r.sha256}
+                    {r.filename}: {r.sha256}
                   </code>
                 </div>
               ))}
@@ -122,6 +152,10 @@ export default async function DownloadPage() {
           After installing
         </h2>
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-[var(--color-muted)]">
+          <li>
+            Portable zip: extract anywhere, then run <code className="font-mono">gamesavecloud.exe</code>.
+            Keep the <code className="font-mono">gamesavecloud-data</code> folder beside it when you move or update.
+          </li>
           <li>Open gamesavecloud and paste your <code className="font-mono">GAMESYNC_TOKEN</code>.</li>
           <li>Click <strong>Scan for games</strong> to find your Steam and Epic library.</li>
           <li>Add the games you want synced, then <strong>Sync all</strong>.</li>

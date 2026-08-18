@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.0 — 2026-08-18
+
+### Added
+- Auto-update for the installer build (electron-updater, feed served from `/updates/win`)
+- Portable builds: zip (x64, arm64) and a single self-extracting exe (x64).
+  Portable keeps config, sync state and backups in `gamesavecloud-data` next to the
+  executable, so the folder can move between PCs or live on a USB stick.
+- `gamesync find-saves "<game>"` — locates a game's real save folder and prints a
+  ready-to-paste recipe with the Steam appid or Epic AppName filled in
+- Detroit: Become Human recipe expanded to 8 candidate paths
+
+### Fixed
+- Epic games never got an `appId`, so Play could not launch any of them
+
+### Notes
+- Portable builds do not auto-update by design; the NSIS updater cannot replace an
+  extracted folder. Download a newer zip and keep `gamesavecloud-data`.
+
 ## 0.1.0 — 2026-08-18
 
 First working release.

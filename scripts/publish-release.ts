@@ -26,20 +26,29 @@ const s3 = new S3Client({
 });
 const sql = postgres(process.env.DATABASE_URL_UNPOOLED!, { max: 1 });
 
-const files = fs.readdirSync(RELEASE_DIR)
-  .filter((f) => f.endsWith(".exe"))
-  // skip the combined multi-arch installer; per-arch downloads are half the size
-  .filter((f) => /-(x64|arm64)-setup\.exe$/.test(f));
+/** installer = NSIS setup, portable = self-extracting exe, zip = extract-and-run */
+function classify(f: string): { kind: "installer" | "portable" | "zip"; arch: string } | null {
+  let m = f.match(/-(x64|arm64)-setup\.exe$/);
+  if (m) return { kind: "installer", arch: m[1] };
+  m = f.match(/-(x64|arm64)-portable\.exe$/);
+  if (m) return { kind: "portable", arch: m[1] };
+  m = f.match(/-(x64|arm64)-portable\.zip$/) ?? f.match(/-(x64|arm64)\.zip$/);
+  if (m) return { kind: "zip", arch: m[1] };
+  return null;
+}
+
+const all = fs.readdirSync(RELEASE_DIR);
+const files = all.filter((f) => classify(f) !== null);
 
 if (!files.length) {
-  console.error(`No per-arch installers in ${RELEASE_DIR}. Run: pnpm desktop:dist`);
+  console.error(`No publishable artifacts in ${RELEASE_DIR}. Run: pnpm desktop:dist:all`);
   process.exit(1);
 }
 
 for (const filename of files) {
   const abs = path.join(RELEASE_DIR, filename);
   const size = fs.statSync(abs).size;
-  const arch = filename.match(/-(x64|arm64)-setup\.exe$/)![1];
+  const { kind, arch } = classify(filename)!;
 
   const hash = createHash("sha256");
   await new Promise<void>((res, rej) =>
@@ -47,7 +56,7 @@ for (const filename of files) {
   const sha256 = hash.digest("hex");
 
   const key = `releases/${version}/${filename}`;
-  process.stdout.write(`↑ ${filename} (${(size / 1e6).toFixed(0)} MB) `);
+  process.stdout.write(`↑ ${filename} (${kind}, ${(size / 1e6).toFixed(0)} MB) `);
 
   await new Upload({
     client: s3,
@@ -60,9 +69,9 @@ for (const filename of files) {
   }).done();
 
   await sql`
-    insert into releases (version, platform, arch, filename, key, size, sha256, notes)
-    values (${version}, 'win', ${arch}, ${filename}, ${key}, ${size}, ${sha256}, ${notes})
-    on conflict (version, platform, arch) do update set
+    insert into releases (version, platform, arch, kind, filename, key, size, sha256, notes)
+    values (${version}, 'win', ${arch}, ${kind}, ${filename}, ${key}, ${size}, ${sha256}, ${notes})
+    on conflict (version, platform, arch, kind) do update set
       filename = excluded.filename, key = excluded.key, size = excluded.size,
       sha256 = excluded.sha256, notes = excluded.notes, created_at = now()`;
 
@@ -86,12 +95,17 @@ for (const filename of files) {
  * Its version points `path` at the combined multi-arch installer (169 MB), so
  * every user would download that rather than the 78 MB build for their CPU.
  */
-const feedFiles = files.map((filename) => {
+const feedFiles = files.filter((f) => classify(f)!.kind === "installer").map((filename) => {
   const abs = path.join(RELEASE_DIR, filename);
   const sha512 = createHash("sha512").update(fs.readFileSync(abs)).digest("base64");
   return { url: filename, sha512, size: fs.statSync(abs).size, arch: filename.includes("-arm64-") ? "arm64" : "x64" };
 });
 const primary = feedFiles.find((f) => f.arch === "x64") ?? feedFiles[0];
+if (!primary) {
+  console.log("\nno installers in this batch — skipping the update feed");
+  await sql.end();
+  process.exit(0);
+}
 
 const yml = [
   `version: ${version}`,

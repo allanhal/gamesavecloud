@@ -25,8 +25,18 @@ export interface Config {
   games: GameConfig[];
 }
 
+let override: string | null = null;
+
+/**
+ * Portable builds keep their data beside the executable instead of in %APPDATA%,
+ * so copying the folder to another PC carries the config and sync state with it.
+ */
+export function setConfigDir(dir: string | null): void { override = dir; }
+export const isPortable = () => override !== null;
+
 /** %APPDATA%/gamesavecloud on Windows, ~/.config/gamesavecloud elsewhere. */
 export function configDir(): string {
+  if (override) return override;
   if (process.platform === "win32") {
     return path.join(process.env.APPDATA ?? path.join(os.homedir(), "AppData", "Roaming"), "gamesavecloud");
   }

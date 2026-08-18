@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld("gsc", {
   checkUpdate: () => ipcRenderer.invoke("update:check"),
   installUpdate: () => ipcRenderer.invoke("update:install"),
   appVersion: () => ipcRenderer.invoke("app:version"),
+  portableDir: () => ipcRenderer.invoke("app:portable"),
   onUpdateState: (cb: (s: any) => void) => ipcRenderer.on("update:state", (_e, s) => cb(s)),
 
   onProgress: (cb: (p: any) => void) => ipcRenderer.on("sync:progress", (_e, p) => cb(p)),

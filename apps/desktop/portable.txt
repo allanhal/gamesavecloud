@@ -1,0 +1,9 @@
+This file marks a portable install of gamesavecloud.
+
+Settings, sync state and local backups are stored in the
+"gamesavecloud-data" folder next to gamesavecloud.exe rather than in %APPDATA%.
+Copy the whole folder to another PC (or a USB stick) to take your setup with you.
+
+Portable builds do not auto-update. Download a newer zip from
+https://gamesavecloud.vercel.app/download and replace the files,
+keeping the gamesavecloud-data folder.
