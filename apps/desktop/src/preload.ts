@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld("gsc", {
 
   status: () => ipcRenderer.invoke("games:status"),
   detect: () => ipcRenderer.invoke("games:detect"),
+  probe: (name: string, installDir?: string, appId?: string, source?: string) =>
+    ipcRenderer.invoke("games:probe", name, installDir, appId, source),
+  copy: (text: string) => ipcRenderer.invoke("clipboard:write", text),
   add: (detected: unknown) => ipcRenderer.invoke("games:add", detected),
   addManual: (name: string, folder: string) => ipcRenderer.invoke("games:addManual", name, folder),
   remove: (id: string) => ipcRenderer.invoke("games:remove", id),

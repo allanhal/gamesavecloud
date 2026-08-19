@@ -1,11 +1,11 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage, clipboard } from "electron";
 import path from "node:path";
 import { initUpdater, checkNow, installNow, getUpdateState } from "./updater";
 import fs from "node:fs";
 import {
   loadConfig, saveConfig, defaultConfig, configDir, setConfigDir, isPortable, loadState, stateKey,
   Api, syncGame, detectGames, toGameConfig, scanDir, manifestHashSync,
-  launchGame, waitForExit, isGameRunning,
+  launchGame, waitForExit, isGameRunning, findSaveCandidates, renderRecipe,
   type Config, type GameConfig,
 } from "@gsc/core";
 
@@ -162,6 +162,29 @@ ipcMain.handle("games:status", () => statusAll());
 
 ipcMain.handle("games:detect", () => detectGames());
 
+/**
+ * Searches the folders games actually save into, for titles no recipe covers.
+ * Also returns a recipe snippet so a confirmed path can be contributed back.
+ */
+ipcMain.handle("games:probe", (_e, name: string, installDir?: string, appId?: string, source?: string) => {
+  const candidates = findSaveCandidates(name, {
+    extraRoots: installDir ? [installDir] : [],
+    installDir,
+  });
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return {
+    candidates,
+    recipe: candidates.length
+      ? renderRecipe({
+          id, name,
+          steamAppId: source === "steam" ? appId : undefined,
+          epicAppName: source === "epic" ? appId : undefined,
+          templates: candidates.slice(0, 3).map((c) => c.template),
+        })
+      : null,
+  };
+});
+
 ipcMain.handle("games:add", async (_e, detected: any) => {
   const cfg = cfgOrThrow();
   const gc = toGameConfig(detected);
@@ -242,6 +265,7 @@ ipcMain.handle("dialog:pickFolder", async () => {
   return r.canceled ? null : r.filePaths[0];
 });
 
+ipcMain.handle("clipboard:write", (_e, text: string) => clipboard.writeText(text));
 ipcMain.handle("shell:openConfigDir", () => shell.openPath(configDir()));
 ipcMain.handle("shell:openPath", (_e, p: string) => shell.openPath(p));
 ipcMain.handle("app:portable", () => (isPortable() ? configDir() : null));

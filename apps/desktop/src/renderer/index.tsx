@@ -64,11 +64,90 @@ function Setup({ onDone }: { onDone: () => void }) {
 
 /* ── library (scan results) ─────────────────────────────────────────── */
 
+/** Ranked guesses for a game whose save folder no recipe knows. */
+function FindSaves({ game, onClose, onAdded }: { game: any; onClose: () => void; onAdded: () => void }) {
+  const [res, setRes] = useState<any>(null);
+  const [busy, setBusy] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    gsc().probe(game.name, game.installDir, game.appId, game.source)
+      .then((r: any) => { setRes(r); setBusy(false); })
+      .catch(() => setBusy(false));
+  }, [game.name]);
+
+  const use = async (p: string) => {
+    try { await gsc().addManual(game.name, p); onAdded(); onClose(); }
+    catch (e: any) { alert(e.message); }
+  };
+
+  return (
+    <div className="panel" style={{ padding: 14, marginTop: 10 }}>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <strong>Where does {game.name} save?</strong>
+        <button onClick={onClose}>Close</button>
+      </div>
+
+      {busy && <p className="muted">Searching Saved Games, Documents, AppData…</p>}
+
+      {!busy && !res?.candidates?.length && (
+        <div style={{ marginTop: 8 }}>
+          <p className="muted">
+            Nothing found. Play the game once so it writes a save, then try again —
+            or pick the folder yourself.
+          </p>
+          <button onClick={async () => {
+            const f = await gsc().pickFolder();
+            if (f) use(f);
+          }}>Pick folder…</button>
+        </div>
+      )}
+
+      {!busy && res?.candidates?.map((cd: any, i: number) => (
+        <div key={cd.path} className="panel" style={{ padding: 10, marginTop: 8 }}>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="row" style={{ gap: 8 }}>
+                <strong>#{i + 1}</strong>
+                <span className="pill" style={{ color: i === 0 ? "var(--accent)" : "var(--muted)" }}>
+                  score {cd.score}
+                </span>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {cd.files} files · {bytes(cd.bytes)} · newest {Math.round((Date.now() - cd.newestMs) / 86400000)}d ago
+                </span>
+              </div>
+              <div className="mono" style={{ marginTop: 4, overflowWrap: "anywhere" }}>{cd.path}</div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{cd.why.join(", ")}</div>
+            </div>
+            <button className={i === 0 ? "primary" : ""} onClick={() => use(cd.path)}>Use this</button>
+          </div>
+        </div>
+      ))}
+
+      {!busy && res?.recipe && (
+        <div style={{ marginTop: 12 }}>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <span className="muted" style={{ fontSize: 12 }}>Recipe for this game — send it to have it built in</span>
+            <button onClick={() => { gsc().copy(res.recipe); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+              {copied ? "Copied" : "Copy recipe"}
+            </button>
+          </div>
+          <pre className="mono muted" style={{
+            marginTop: 6, padding: 10, background: "rgba(0,0,0,.25)",
+            border: "1px solid var(--line)", borderRadius: 8, overflowX: "auto", fontSize: 11,
+          }}>{res.recipe}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Library({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const [data, setData] = useState<any>(null);
   const [busy, setBusy] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
+  const [probing, setProbing] = useState<string | null>(null);
 
   useEffect(() => {
     gsc().detect().then((d: any) => { setData(d); setBusy(false); });
@@ -134,12 +213,20 @@ function Library({ onClose, onAdded }: { onClose: () => void; onAdded: () => voi
                         {g.savePath ?? g.reason}
                       </div>
                     </div>
-                    {g.savePath
-                      ? <button className="primary" disabled={adding === g.id} onClick={() => add(g)}>
+                    <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                      {g.savePath && (
+                        <button className="primary" disabled={adding === g.id} onClick={() => add(g)}>
                           {adding === g.id ? "Adding…" : "Sync this"}
                         </button>
-                      : <button onClick={() => addWithFolder(g)}>Pick folder…</button>}
+                      )}
+                      <button onClick={() => setProbing(probing === g.id + g.source ? null : g.id + g.source)}>
+                        {g.savePath ? "Other folder…" : "Find saves"}
+                      </button>
+                    </div>
                   </div>
+                  {probing === g.id + g.source && (
+                    <FindSaves game={g} onClose={() => setProbing(null)} onAdded={onAdded} />
+                  )}
                 </div>
               );
             })}
