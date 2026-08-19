@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0 — 2026-08-19
+
+**Installers are now built on Windows in CI.** The 0.1.0 and 0.2.0 installers were
+cross-built from macOS through wine; NSIS generates its uninstaller by executing the
+compiled installer, which does not survive that, so those uninstallers failed their
+own integrity check and blocked installing any newer version.
+
+### Added
+- Find a game's save folder from inside the app — ranked candidates with file count,
+  size and recency, one-click "Use this", and a copyable recipe snippet
+- `scripts/windows-cleanup.ps1`, served at `/cleanup.ps1`, removes a wedged install
+- Releases record the host they were built on; `/download` flags cross-built installers
+
+### Changed
+- NSIS compression dropped from `maximum` to `normal`
+
+### Fixed
+- Windows installer and uninstaller integrity failure
+
 ## 0.2.0 — 2026-08-18
 
 ### Added

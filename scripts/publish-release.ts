@@ -16,6 +16,9 @@ const version = process.argv[2]?.startsWith("-") ? pkg.version : (process.argv[2
 const notesIdx = process.argv.indexOf("--notes");
 const notes = notesIdx > -1 ? process.argv[notesIdx + 1] : null;
 
+/** Artifacts built in CI are downloaded here, so the host OS must be stated. */
+const builtOn = process.env.GSC_BUILT_ON ?? process.platform;
+
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT!,
@@ -70,7 +73,7 @@ for (const filename of files) {
 
   await sql`
     insert into releases (version, platform, arch, kind, built_on, filename, key, size, sha256, notes)
-    values (${version}, 'win', ${arch}, ${kind}, ${process.platform}, ${filename}, ${key}, ${size}, ${sha256}, ${notes})
+    values (${version}, 'win', ${arch}, ${kind}, ${builtOn}, ${filename}, ${key}, ${size}, ${sha256}, ${notes})
     on conflict (version, platform, arch, kind) do update set
       filename = excluded.filename, key = excluded.key, size = excluded.size,
       sha256 = excluded.sha256, notes = excluded.notes, built_on = excluded.built_on,
@@ -133,4 +136,4 @@ await new Upload({
 console.log(`↑ latest.yml (update feed, ${feedFiles.length} archs, default ${primary.arch})`);
 
 await sql.end();
-console.log(`\npublished v${version} — https://gamesavecloud.vercel.app/download`);
+console.log(`\npublished v${version} (built on ${builtOn}) — https://gamesavecloud.vercel.app/download`);
