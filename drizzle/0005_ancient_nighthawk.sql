@@ -1,0 +1,1 @@
+ALTER TABLE "releases" ADD COLUMN "built_on" text DEFAULT 'unknown' NOT NULL;

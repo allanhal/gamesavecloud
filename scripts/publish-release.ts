@@ -69,11 +69,12 @@ for (const filename of files) {
   }).done();
 
   await sql`
-    insert into releases (version, platform, arch, kind, filename, key, size, sha256, notes)
-    values (${version}, 'win', ${arch}, ${kind}, ${filename}, ${key}, ${size}, ${sha256}, ${notes})
+    insert into releases (version, platform, arch, kind, built_on, filename, key, size, sha256, notes)
+    values (${version}, 'win', ${arch}, ${kind}, ${process.platform}, ${filename}, ${key}, ${size}, ${sha256}, ${notes})
     on conflict (version, platform, arch, kind) do update set
       filename = excluded.filename, key = excluded.key, size = excluded.size,
-      sha256 = excluded.sha256, notes = excluded.notes, created_at = now()`;
+      sha256 = excluded.sha256, notes = excluded.notes, built_on = excluded.built_on,
+      created_at = now()`;
 
   // blockmap enables electron-updater's differential download
   const blockmap = `${abs}.blockmap`;

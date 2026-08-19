@@ -1,6 +1,6 @@
 {
   "name": "@gsc/desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "gamesavecloud \u2014 cloud saves for PC games",
   "author": "gamesavecloud",
@@ -72,7 +72,7 @@
       "perMachine": false,
       "shortcutName": "gamesavecloud"
     },
-    "compression": "maximum",
+    "compression": "normal",
     "publish": [
       {
         "provider": "generic",

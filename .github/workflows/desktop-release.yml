@@ -1,0 +1,78 @@
+name: Desktop release
+
+# NSIS must be built on Windows. Cross-building from macOS through wine produces
+# an uninstaller that fails its own integrity check, because NSIS generates the
+# uninstaller by executing the compiled installer.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (defaults to apps/desktop/package.json)"
+        required: false
+      publish:
+        description: "Upload to R2 and list on /download"
+        type: boolean
+        default: false
+  push:
+    tags: ["desktop-v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Set version
+        if: inputs.version != ''
+        shell: pwsh
+        run: |
+          $p = "apps/desktop/package.json"
+          $j = Get-Content $p -Raw | ConvertFrom-Json
+          $j.version = "${{ inputs.version }}"
+          $j | ConvertTo-Json -Depth 32 | Set-Content $p
+
+      - name: Build installers (NSIS)
+        run: pnpm -F @gsc/desktop dist
+        env:
+          # electron-builder publishes only when we ask it to
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Build portable (zip + single exe)
+        run: pnpm -F @gsc/desktop dist:portable
+
+      - name: Verify the uninstaller was produced
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem apps/desktop/release/*-setup.exe | Select-Object -First 1
+          if (-not $exe) { throw "no installer produced" }
+          Write-Host "built $($exe.Name) — $([math]::Round($exe.Length/1MB)) MB"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gamesavecloud-windows
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+          retention-days: 14
+
+      - name: Publish to R2
+        if: inputs.publish == true
+        run: pnpm release
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

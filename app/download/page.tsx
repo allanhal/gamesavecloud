@@ -38,6 +38,11 @@ export default async function DownloadPage() {
   const versions = [...byVersion.entries()];
   const [latestVersion, latestBuilds] = versions[0] ?? [null, []];
 
+  // NSIS built anywhere but Windows can ship a broken uninstaller
+  const crossBuiltInstaller = latestBuilds.some(
+    (b) => (b.kind ?? "installer") === "installer" && b.builtOn !== "win32",
+  );
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <div className="flex items-center justify-between">
@@ -67,6 +72,21 @@ export default async function DownloadPage() {
             <p className="mt-1 text-sm text-[var(--color-muted)]">{latestBuilds[0].notes}</p>
           )}
 
+          {crossBuiltInstaller && (
+            <Panel className="mt-4 border-[var(--color-danger)]/40 p-4">
+              <p className="text-sm font-medium text-[var(--color-danger)]">
+                Use the portable build for now
+              </p>
+              <p className="mt-1 text-sm text-[var(--color-muted)]">
+                This installer was cross-built from macOS, and its uninstaller fails an
+                integrity check on Windows. NSIS generates the uninstaller by running the
+                compiled installer, which does not survive being built through wine. The
+                portable zip below has no installer and is unaffected. A Windows-built
+                installer is coming from CI.
+              </p>
+            </Panel>
+          )}
+
           <div className="mt-4 space-y-5">
             {(["installer", "zip", "portable"] as const).map((kind) => {
               const builds = latestBuilds.filter((b) => (b.kind ?? "installer") === kind);
@@ -83,10 +103,19 @@ export default async function DownloadPage() {
                           <div className="text-sm font-medium">{ARCH_LABEL[r.arch] ?? r.arch}</div>
                           <div className="mt-0.5 truncate font-mono text-xs text-[var(--color-muted)]">
                             {r.filename} · {bytes(Number(r.size))}
+                            {kind === "installer" && r.builtOn !== "win32" && " · cross-built"}
                           </div>
                         </div>
                         <a href={`/dl/${r.id}`}>
-                          <Button variant={kind === "installer" ? "default" : "ghost"}>Download</Button>
+                          <Button
+                            variant={
+                              kind === "installer"
+                                ? (r.builtOn === "win32" ? "default" : "ghost")
+                                : (crossBuiltInstaller && kind === "zip" ? "default" : "ghost")
+                            }
+                          >
+                            Download
+                          </Button>
                         </a>
                       </Panel>
                     ))}

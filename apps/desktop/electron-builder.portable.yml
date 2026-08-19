@@ -35,5 +35,5 @@ win:
   artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
 portable:
   artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
-compression: maximum
+compression: normal
 publish: null
