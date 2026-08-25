@@ -71,8 +71,23 @@ pnpm cli watch                  # background daemon
 ```bash
 pnpm desktop                    # run it locally
 pnpm desktop:dist               # portable zip (x64 + arm64) + single-exe (x64)
-pnpm release                    # upload everything to R2, list it on /download
+
+pnpm ship                       # release: bump patch, verify, push — CI does the rest
+pnpm ship minor                 # or major, or an exact version: pnpm ship 1.0.0
+pnpm ship --dry                 # test + typecheck only, writes nothing
+pnpm ship:watch                 # follow the CI run it just triggered
+pnpm ship:local                 # build here (needs wine) and upload straight to R2
 ```
+
+`pnpm ship` refuses a dirty tree or a branch other than main, runs the tests and
+typecheck first, bumps `apps/desktop/package.json`, dates an `## Unreleased` changelog
+heading, then commits and pushes. The push is the trigger.
+
+Every push to main builds on a Windows runner. It publishes only when that version
+changed, and then publishes twice: to R2, which is what `/download` lists, and as a
+GitHub Release tagged `desktop-v<version>` carrying the same artifacts and the changelog
+section. The repo is private, so the GitHub assets need repo access — `/download` is the
+public route.
 
 The app ships **portable only** — no installer, no auto-update. A packaged build keeps
 its data in `gamesavecloud-data` beside the exe, so the folder carries config, sync

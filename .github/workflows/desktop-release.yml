@@ -29,6 +29,9 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 40
+    permissions:
+      # creating the GitHub Release and attaching artifacts to it
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,3 +112,41 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      # The repo is private, so these assets need repo access to download —
+      # /download stays the public route. This is the versioned archive, and it
+      # tags the exact commit each build came from.
+      - name: Publish a GitHub Release
+        if: steps.gate.outputs.publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          $tag = "desktop-v$version"
+
+          # the changelog section for this version, if it has one
+          $notesFile = "release-notes.md"
+          $lines = Get-Content CHANGELOG.md
+          $start = ($lines | Select-String -Pattern "^## $([regex]::Escape($version))( |$)" | Select-Object -First 1).LineNumber
+          if ($start) {
+            $rest = $lines[$start..($lines.Count - 1)]
+            $next = ($rest | Select-String -Pattern "^## " | Select-Object -First 1).LineNumber
+            $body = if ($next) { $rest[0..($next - 2)] } else { $rest }
+            $body -join "`n" | Set-Content $notesFile
+          } else {
+            "Portable Windows build of gamesavecloud $version." | Set-Content $notesFile
+          }
+
+          $assets = (Get-ChildItem apps/desktop/release/* -Include *.zip,*.exe |
+            Where-Object { $_.Name -like "*-$version-*" }).FullName
+          if (-not $assets) { throw "no v$version artifacts to attach" }
+
+          # re-running a publish replaces the assets rather than failing
+          if (gh release view $tag 2>$null) {
+            gh release edit $tag --title "gamesavecloud $version" --notes-file $notesFile
+            gh release upload $tag $assets --clobber
+          } else {
+            gh release create $tag $assets --title "gamesavecloud $version" --notes-file $notesFile --target $env:GITHUB_SHA
+          }
+          Write-Host "released $tag with $($assets.Count) assets"
