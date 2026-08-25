@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ago, bytes } from "./format";
+import { ago, bytes, stamp } from "./format";
 
 test("bytes formats null and byte values", () => {
   assert.equal(bytes(null), "—");
@@ -29,4 +29,12 @@ test("ago formats recent relative times", () => {
   } finally {
     Date.now = originalNow;
   }
+});
+
+test("stamp renders an absolute local timestamp, and nothing for null", () => {
+  const s = stamp("2026-08-24T22:31:00.000Z");
+
+  assert.equal(stamp(null), "");
+  assert.match(s, /2026/);
+  assert.notEqual(s, ago("2026-08-24T22:31:00.000Z"));
 });

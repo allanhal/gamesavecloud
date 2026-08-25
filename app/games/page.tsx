@@ -2,7 +2,7 @@ import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { requireSession } from "@/lib/auth";
-import { bytes, ago } from "@/lib/format";
+import { bytes, ago, stamp } from "@/lib/format";
 import { Panel, Stat, StatusPill, Empty, Button } from "@/components/ui";
 import { logout } from "../actions";
 import AddGame from "@/components/add-game";
@@ -102,6 +102,7 @@ export default async function Dashboard() {
                     <span className="tabular-nums">{bytes(Number(s.size))}</span>
                     <span className="text-[var(--color-muted)]">
                       {s.lastDevice ?? "—"} · {ago(s.lastSyncAt)}
+                      {s.lastSyncAt && ` · ${stamp(s.lastSyncAt)}`}
                     </span>
                   </div>
 
@@ -120,6 +121,7 @@ export default async function Dashboard() {
                           <span className="font-medium">{d.deviceName}</span>
                           <span className="text-[var(--color-muted)]">
                             synced v{d.syncedVersion} · local {bytes(Number(d.localSize))} · {ago(d.scannedAt)}
+                            {d.scannedAt && ` · ${stamp(d.scannedAt)}`}
                           </span>
                         </div>
                       ))}

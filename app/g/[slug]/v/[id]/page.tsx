@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { requireSession } from "@/lib/auth";
-import { bytes, ago } from "@/lib/format";
+import { bytes, ago, stamp } from "@/lib/format";
 import { Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export default async function VersionPage({ params }: { params: Promise<{ slug: 
       </Link>
       <h1 className="mt-2 text-xl font-semibold tracking-tight">Version {snap.version}</h1>
       <p className="text-sm text-[var(--color-muted)]">
-        {snap.device ?? "—"} · {ago(snap.created_at)} · {files.length} files · {bytes(Number(snap.total_size))}
+        {snap.device ?? "—"} · {ago(snap.created_at)} · {stamp(snap.created_at)} · {files.length} files · {bytes(Number(snap.total_size))}
       </p>
 
       <Panel className="mt-6 divide-y divide-[var(--color-line)]">

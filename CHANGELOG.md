@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Dashboard lists games that exist in the cloud but are not set up on this PC, with the
+  save folder this machine would use — one click adopts it and pulls the save down
+- Version lists show the absolute timestamp next to the relative one, in the app and on
+  the web dashboard, with the exact ISO time on hover
+
 ## 0.4.3 — 2026-08-25
 
 Portable Windows build.

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { requireSession } from "@/lib/auth";
-import { bytes, ago } from "@/lib/format";
+import { bytes, ago, stamp } from "@/lib/format";
 import { Panel, Empty, Button } from "@/components/ui";
 import SlotActions from "@/components/slot-actions";
 import DangerZone from "@/components/danger-zone";
@@ -68,7 +68,9 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
                     <span className="tabular-nums">{bytes(Number(v.totalSize))}</span>
                     <span className="text-[var(--color-muted)]">{v.fileCount} files</span>
                     <span className="text-[var(--color-muted)]">{v.device ?? "—"}</span>
-                    <span className="text-[var(--color-muted)]">{ago(v.createdAt)}</span>
+                    <span className="text-[var(--color-muted)]" title={new Date(v.createdAt).toISOString()}>
+                      {ago(v.createdAt)} · {stamp(v.createdAt)}
+                    </span>
                     <div className="ml-auto flex items-center gap-2">
                       <Link href={`/g/${slug}/v/${v.id}`}>
                         <Button variant="ghost">Files</Button>

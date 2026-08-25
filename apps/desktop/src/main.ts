@@ -210,6 +210,50 @@ ipcMain.handle("games:status", () => statusAll());
 ipcMain.handle("games:detect", () => detectGames());
 
 /**
+ * Games that exist in the cloud but are not set up on this PC — a save synced
+ * from another machine is invisible until this one knows where it lives, which
+ * looked like the dashboard silently losing a game.
+ */
+ipcMain.handle("games:cloud", async () => {
+  const cfg = cfgOrThrow();
+  const here = new Set(cfg.games.map((g) => g.id));
+  const { games } = await new Api(cfg).games();
+  const missing = games.filter((g: any) => !here.has(g.slug));
+  if (!missing.length) return [];
+
+  // detection is the expensive part, so only run it when something is missing
+  const detected = detectGames().games;
+  return missing.map((g: any) => {
+    const match = detected.find((d) => d.id === g.slug);
+    return {
+      id: g.slug, name: g.name,
+      // a path we can offer to adopt straight away, if this PC has the game
+      suggestedPath: match?.savePath ?? null,
+      source: match?.source ?? null,
+      appId: match?.appId ?? null,
+      installDir: match?.installDir ?? null,
+    };
+  });
+});
+
+/** Sets up a cloud game on this PC, then pulls its save down. */
+ipcMain.handle("games:adopt", async (_e, game: any, folder: string) => {
+  const cfg = cfgOrThrow();
+  if (cfg.games.some((g) => g.id === game.id)) throw new Error("Already set up here.");
+  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+
+  const gc = {
+    id: game.id, name: game.name, path: folder, slot: 0, enabled: true,
+    source: (game.source ?? "manual") as "steam" | "epic" | "manual",
+    appId: game.appId ?? undefined, installDir: game.installDir ?? undefined,
+  };
+  cfg.games.push(gc);
+  saveConfig(cfg);
+  await syncGame(cfg, gc, { onProgress: (m) => send("sync:progress", { game: gc.id, message: m }) });
+  return gc;
+});
+
+/**
  * Searches the folders games actually save into, for titles no recipe covers.
  * Also returns a recipe snippet so a confirmed path can be contributed back.
  */

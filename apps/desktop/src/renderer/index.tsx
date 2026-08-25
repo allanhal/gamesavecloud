@@ -12,6 +12,16 @@ const bytes = (n: number) => {
   return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${u[i]}`;
 };
 
+/** "9m ago" answers "recent?", the timestamp beside it answers "which run?". */
+const ago = (d: string | number | Date) => {
+  const m = Math.round((Date.now() - new Date(d).getTime()) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+};
+
 const STATUS: Record<string, { label: string; color: string }> = {
   "in-sync": { label: "In sync", color: "var(--accent)" },
   "local-ahead": { label: "Local changes", color: "var(--warn)" },
@@ -308,7 +318,9 @@ function History({ game, onClose }: { game: any; onClose: () => void }) {
               <strong style={{ width: 44 }}>v{s.version}</strong>
               {s.version === h.currentVersion && <span className="pill" style={{ color: "var(--accent)", borderColor: "var(--accent)66" }}>current</span>}
               {s.pinned && <span className="pill muted">pinned</span>}
-              <span className="muted">{new Date(s.createdAt).toLocaleString()}</span>
+              <span className="muted" title={new Date(s.createdAt).toISOString()}>
+                {ago(s.createdAt)} · {new Date(s.createdAt).toLocaleString()}
+              </span>
               <span className="muted">{bytes(Number(s.totalSize))}</span>
               <span className="muted">{s.device}</span>
             </div>
@@ -356,11 +368,16 @@ function App() {
   const [historyFor, setHistoryFor] = useState<any>(null);
   const [progress, setProgress] = useState<Record<string, string>>({});
   const [syncing, setSyncing] = useState(false);
+  const [cloud, setCloud] = useState<any[]>([]);
+  const [adopting, setAdopting] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const c = await gsc().getConfig();
     setCfg(c);
-    if (c) setGames(await gsc().status());
+    if (!c) return;
+    setGames(await gsc().status());
+    // saves synced from another PC show up here until this one adopts them
+    gsc().cloudGames().then(setCloud).catch(() => setCloud([]));
   }, []);
 
   useEffect(() => {
@@ -369,6 +386,15 @@ function App() {
     gsc().onDone(() => { setProgress({}); setSyncing(false); refresh(); });
     gsc().onBackground(() => refresh());
   }, [refresh]);
+
+  const adopt = async (g: any) => {
+    const folder = g.suggestedPath ?? await gsc().pickFolder();
+    if (!folder) return;
+    setAdopting(g.id);
+    try { await gsc().adopt(g, folder); await refresh(); }
+    catch (e: any) { alert(e.message); }
+    finally { setAdopting(null); }
+  };
 
   const syncAll = async () => {
     setSyncing(true);
@@ -411,7 +437,36 @@ function App() {
       </p>
       <StatusLine />
 
-      {games.length === 0 && (
+      {cloud.length > 0 && (
+        <div className="panel" style={{ padding: 14, marginTop: 16, borderColor: "rgba(90,169,230,.4)" }}>
+          <strong style={{ fontSize: 14 }}>In your cloud, not set up on this PC</strong>
+          <div className="muted" style={{ fontSize: 13, margin: "2px 0 10px" }}>
+            These have saves in the cloud from another machine. Pick where each one lives
+            here and it will be pulled down.
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {cloud.map((g) => (
+              <div key={g.id} className="row" style={{ justifyContent: "space-between", gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="row" style={{ gap: 8 }}>
+                    <strong>{g.name}</strong>
+                    {g.source && <span className="pill muted">{g.source}</span>}
+                  </div>
+                  <div className="mono muted" style={{ fontSize: 12, marginTop: 2, overflowWrap: "anywhere" }}>
+                    {g.suggestedPath ?? "no save folder found here — choose one"}
+                  </div>
+                </div>
+                <button className={g.suggestedPath ? "primary" : ""} disabled={adopting === g.id}
+                  onClick={() => adopt(g)}>
+                  {adopting === g.id ? "Setting up…" : g.suggestedPath ? "Set up here" : "Choose folder…"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {games.length === 0 && cloud.length === 0 && (
         <div className="panel" style={{ padding: 32, textAlign: "center", marginTop: 20 }}>
           <p style={{ margin: 0, fontWeight: 600 }}>No games yet</p>
           <p className="muted">Scan Steam and Epic to find your installed games.</p>

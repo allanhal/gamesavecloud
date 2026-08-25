@@ -7,6 +7,17 @@ export function bytes(n: number | null | undefined): string {
   return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${u[i]}`;
 }
 
+/**
+ * Absolute local timestamp, shown beside the relative one: "9m ago" answers
+ * "recent?", the stamp answers "which run was that?".
+ */
+export function stamp(d: Date | string | null | undefined): string {
+  if (!d) return "";
+  return new Date(d).toLocaleString(undefined, {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
 export function ago(d: Date | string | null | undefined): string {
   if (!d) return "never";
   const ms = Date.now() - new Date(d).getTime();
