@@ -21,8 +21,14 @@ on:
     branches: [main]
     tags: ["desktop-v*"]
 
+# Ordinary pushes to main supersede each other — the newest commit is the one
+# worth building. Tags and manual runs get a group of their own so a publish is
+# never cancelled by whatever lands next.
 concurrency:
-  group: desktop-release-${{ github.ref }}
+  group: >-
+    ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        && format('desktop-release-{0}', github.ref)
+        || format('desktop-publish-{0}', github.run_id) }}
   cancel-in-progress: true
 
 jobs:
