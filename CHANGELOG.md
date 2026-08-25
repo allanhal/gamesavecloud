@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-08-24
 
 **Portable only.** The NSIS installer and the auto-updater are gone. Every build keeps
 its data in `gamesavecloud-data` beside the exe, and updating is downloading a newer zip

@@ -2,6 +2,11 @@ name: Desktop release
 
 # The app ships portable only (zip + single exe), so nothing here builds an
 # installer. Windows runners still do the build so the exe is a native one.
+#
+# Every push to main builds. It publishes to R2 (and shows up on /download)
+# when the version in apps/desktop/package.json changed in that push, on a
+# desktop-v* tag, or on a manual run with publish checked — so ordinary commits
+# never overwrite an already-published version.
 on:
   workflow_dispatch:
     inputs:
@@ -13,7 +18,12 @@ on:
         type: boolean
         default: false
   push:
+    branches: [main]
     tags: ["desktop-v*"]
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -21,6 +31,9 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the publish decision compares this commit's version with its parent
+          fetch-depth: 2
 
       - uses: pnpm/action-setup@v4
 
@@ -39,6 +52,12 @@ jobs:
           $j = Get-Content $p -Raw | ConvertFrom-Json
           $j.version = "${{ inputs.version }}"
           $j | ConvertTo-Json -Depth 32 | Set-Content $p
+
+      - name: Test
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit -p tsconfig.json
 
       - name: Build portable (zip + single exe)
         run: pnpm -F @gsc/desktop dist
@@ -61,8 +80,28 @@ jobs:
             apps/desktop/release/*.zip
           retention-days: 14
 
+      - name: Decide whether to publish
+        id: gate
+        shell: pwsh
+        run: |
+          $publish = $false
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $publish = "${{ inputs.publish }}" -eq "true"
+          } elseif ("${{ github.ref }}".StartsWith("refs/tags/desktop-v")) {
+            $publish = $true
+          } else {
+            $now = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
+            # a first commit has no parent, and neither does a squashed checkout
+            $before = git show "HEAD~1:apps/desktop/package.json" 2>$null
+            $prev = if ($before) { ($before | ConvertFrom-Json).version } else { $null }
+            $publish = ($prev -eq $null) -or ($prev -ne $now)
+            Write-Host "version $prev -> $now"
+          }
+          Write-Host "publish=$publish"
+          "publish=$($publish.ToString().ToLower())" | Out-File $env:GITHUB_OUTPUT -Append
+
       - name: Publish to R2
-        if: inputs.publish == true
+        if: steps.gate.outputs.publish == 'true'
         run: pnpm release
         env:
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}

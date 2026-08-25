@@ -40,11 +40,12 @@ function classify(f: string): { kind: "portable" | "zip"; arch: string } | null 
   return null;
 }
 
+// the release dir keeps older builds, so match the version being published
 const all = fs.readdirSync(RELEASE_DIR);
-const files = all.filter((f) => classify(f) !== null);
+const files = all.filter((f) => classify(f) !== null && f.includes(`-${version}-`));
 
 if (!files.length) {
-  console.error(`No publishable artifacts in ${RELEASE_DIR}. Run: pnpm desktop:dist`);
+  console.error(`No v${version} artifacts in ${RELEASE_DIR}. Run: pnpm desktop:dist`);
   process.exit(1);
 }
 
