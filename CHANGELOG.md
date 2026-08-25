@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.9 — 2026-08-25
 
 ### Added
 - Recipe for **Hyper Echelon** (Epic and Steam) — a Unity title saving under
