@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { firstExisting, placeholders, resolvePath } from "./resolve";
+import { firstExisting, placeholders, plannedPath, resolvePath } from "./resolve";
 
 test("placeholders include explicit resolve context values", () => {
   const values = placeholders({
@@ -43,4 +43,22 @@ test("firstExisting skips templates with missing context placeholders", () => {
   fs.mkdirSync(existing);
 
   assert.equal(firstExisting(["<installDir>/anything", existing]), existing);
+});
+
+test("plannedPath picks the candidate whose parent already exists", () => {
+  const home = os.homedir();
+
+  // the first candidate's parent does not exist, so the second wins
+  assert.equal(
+    plannedPath(["<home>/definitely-missing-xyz/Saves", "<home>/Saves"]),
+    path.join(home, "Saves"),
+  );
+});
+
+test("plannedPath skips templates whose placeholders have no value here", () => {
+  assert.equal(plannedPath(["<installDir>/Saves"], {}), null);
+  assert.equal(
+    plannedPath(["<installDir>/Saves"], { installDir: os.homedir() }),
+    path.join(os.homedir(), "Saves"),
+  );
 });

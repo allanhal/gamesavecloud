@@ -47,6 +47,29 @@ export function resolvePath(template: string, ctx: ResolveCtx = {}): string {
   return path.normalize(out);
 }
 
+/** A template is unusable when a placeholder it names has no value here. */
+function resolvable(t: string, ctx: ResolveCtx): boolean {
+  const vars = placeholders(ctx);
+  return [...t.matchAll(/<(\w+)>/g)].every((m) => vars[m[1]]);
+}
+
+/**
+ * Where a save would go if the game had written one yet: the candidate whose
+ * parent directory already exists, most specific first. Restoring a cloud save
+ * onto a machine that has never launched the game needs this — the folder does
+ * not exist, but its parent (Documents, LocalLow…) does.
+ */
+export function plannedPath(templates: string[], ctx: ResolveCtx = {}): string | null {
+  for (const t of templates) {
+    if (!resolvable(t, ctx)) continue;
+    const p = resolvePath(t, ctx);
+    if (p && fs.existsSync(path.dirname(p))) return p;
+  }
+  // nothing anchored to an existing parent — fall back to the first usable one
+  const first = templates.find((t) => resolvable(t, ctx));
+  return first ? resolvePath(first, ctx) : null;
+}
+
 /** Returns the first template that actually exists on disk. */
 export function firstExisting(templates: string[], ctx: ResolveCtx = {}): string | null {
   for (const t of templates) {

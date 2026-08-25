@@ -229,6 +229,10 @@ ipcMain.handle("games:cloud", async () => {
       id: g.slug, name: g.name,
       // a path we can offer to adopt straight away, if this PC has the game
       suggestedPath: match?.savePath ?? null,
+      // the game is installed but has never written a save: restoring into the
+      // folder the recipe names is exactly what launching it once would create
+      plannedPath: match?.plannedPath ?? null,
+      installed: Boolean(match),
       source: match?.source ?? null,
       appId: match?.appId ?? null,
       installDir: match?.installDir ?? null,

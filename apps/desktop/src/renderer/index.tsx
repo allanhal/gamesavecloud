@@ -387,8 +387,8 @@ function App() {
     gsc().onBackground(() => refresh());
   }, [refresh]);
 
-  const adopt = async (g: any) => {
-    const folder = g.suggestedPath ?? await gsc().pickFolder();
+  const adopt = async (g: any, useFolder?: string) => {
+    const folder = useFolder ?? g.suggestedPath ?? await gsc().pickFolder();
     if (!folder) return;
     setAdopting(g.id);
     try { await gsc().adopt(g, folder); await refresh(); }
@@ -453,13 +453,30 @@ function App() {
                     {g.source && <span className="pill muted">{g.source}</span>}
                   </div>
                   <div className="mono muted" style={{ fontSize: 12, marginTop: 2, overflowWrap: "anywhere" }}>
-                    {g.suggestedPath ?? "no save folder found here — choose one"}
+                    {g.suggestedPath
+                      ?? (g.plannedPath
+                        ? `${g.plannedPath} — not created yet`
+                        : "no save folder found here — choose one")}
                   </div>
+                  {!g.suggestedPath && g.plannedPath && (
+                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                      The game is installed but has never saved. Restoring creates that
+                      folder, the same one it would write to itself.
+                    </div>
+                  )}
                 </div>
-                <button className={g.suggestedPath ? "primary" : ""} disabled={adopting === g.id}
-                  onClick={() => adopt(g)}>
-                  {adopting === g.id ? "Setting up…" : g.suggestedPath ? "Set up here" : "Choose folder…"}
-                </button>
+                <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                  {(g.suggestedPath || g.plannedPath) && (
+                    <button className="primary" disabled={adopting === g.id}
+                      onClick={() => adopt(g, g.suggestedPath ?? g.plannedPath)}>
+                      {adopting === g.id ? "Setting up…" : g.suggestedPath ? "Set up here" : "Create folder and restore"}
+                    </button>
+                  )}
+                  <button disabled={adopting === g.id} onClick={async () => {
+                    const f = await gsc().pickFolder();
+                    if (f) adopt(g, f);
+                  }}>Choose folder…</button>
+                </div>
               </div>
             ))}
           </div>

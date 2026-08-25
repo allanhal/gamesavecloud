@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- A cloud game whose save folder does not exist yet can be restored anyway: the recipe
+  says where the game would write it, and **Create folder and restore** makes that folder
+  and pulls the save into it — no need to launch the game once first
+- **Choose folder…** stays available beside it, for a path the recipe does not know
+
 ## 0.4.4 — 2026-08-25
 
 ### Added

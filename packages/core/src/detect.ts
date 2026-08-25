@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { findByAppId, findByName, firstExisting, resolvePath, guessSaves, type Recipe, type Platform } from "@gsc/recipes";
+import { findByAppId, findByName, firstExisting, resolvePath, plannedPath, guessSaves, type Recipe, type Platform } from "@gsc/recipes";
 import { scanSteam } from "./scanners/steam";
 import { scanEpic } from "./scanners/epic";
 import type { GameConfig } from "./config";
@@ -17,6 +17,8 @@ export interface DetectedGame {
   reason: string;
   /** every recipe path that was checked and missed — the answer to "why not?" */
   tried?: string[];
+  /** where the save would live if the game had written one — restore target */
+  plannedPath?: string | null;
   /** Valve already syncs this one; ours is a versioned backup on top */
   steamCloud?: boolean;
 }
@@ -56,6 +58,7 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
     let reason = "no recipe — pick the folder manually";
 
     const tried: string[] = [];
+    let planned: string | null = null;
     if (recipe) {
       const ctx = { installDir: g.installDir, steamUserId: userId, appId: g.appId };
       for (const saves of platformSaves(recipe, "steam")) {
@@ -64,7 +67,10 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
         tried.push(...saves.map((t) => resolvePath(t, ctx)));
       }
       if (savePath) { tier = "recipe"; reason = `recipe: ${recipe.id}`; }
-      else reason = `recipe ${recipe.id} matched, but none of its folders exist yet`;
+      else {
+        reason = `recipe ${recipe.id} matched, but none of its folders exist yet`;
+        planned = plannedPath(platformSaves(recipe, "steam")[0] ?? [], ctx);
+      }
     }
     if (!savePath) {
       const guesses = guessSaves({
@@ -83,6 +89,7 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
       appId: g.appId, installDir: g.installDir, savePath, tier, reason,
       steamCloud: tier === "steam-cloud",
       tried: tried.length ? [...new Set(tried)] : undefined,
+      plannedPath: planned,
     });
   }
 
@@ -93,6 +100,7 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
     let tier: MatchTier = "none";
     let reason = "no recipe — pick the folder manually";
     const tried: string[] = [];
+    let planned: string | null = null;
 
     if (recipe) {
       // a recipe written for Steam usually names the same folders, so try every
@@ -104,7 +112,10 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
         tried.push(...saves.map((t) => resolvePath(t, ctx)));
       }
       if (savePath) { tier = "recipe"; reason = `recipe: ${recipe.id}`; }
-      else reason = `recipe ${recipe.id} matched, but none of its folders exist yet`;
+      else {
+        reason = `recipe ${recipe.id} matched, but none of its folders exist yet`;
+        planned = plannedPath(platformSaves(recipe, "epic")[0] ?? [], ctx);
+      }
     }
     if (!savePath) {
       const guesses = guessSaves({ installDir: g.installDir, gameName: g.name });
@@ -116,6 +127,7 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
       // AppName is what com.epicgames.launcher://apps/<id> needs to launch
       appId: g.appName, installDir: g.installDir, savePath, tier, reason,
       tried: tried.length ? [...new Set(tried)] : undefined,
+      plannedPath: planned,
     });
   }
 

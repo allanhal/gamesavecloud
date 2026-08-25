@@ -21,15 +21,12 @@ on:
     branches: [main]
     tags: ["desktop-v*"]
 
-# Ordinary pushes to main supersede each other — the newest commit is the one
-# worth building. Tags and manual runs get a group of their own so a publish is
-# never cancelled by whatever lands next.
+# Runs queue, they never cancel each other. A push carrying a version bump
+# publishes, and superseding it mid-build loses that release — which is exactly
+# what happened to 0.4.3. Waiting a few minutes is cheaper than a lost version.
 concurrency:
-  group: >-
-    ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
-        && format('desktop-release-{0}', github.ref)
-        || format('desktop-publish-{0}', github.run_id) }}
-  cancel-in-progress: true
+  group: desktop-release
+  cancel-in-progress: false
 
 jobs:
   build:
