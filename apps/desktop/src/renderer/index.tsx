@@ -155,13 +155,21 @@ function FindSaves({ game, onClose, onAdded }: { game: any; onClose: () => void;
 function Library({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const [data, setData] = useState<any>(null);
   const [busy, setBusy] = useState(true);
-  const [showAll, setShowAll] = useState(false);
+  // games with no save folder are the ones that need attention — never hide them
+  const [showAll, setShowAll] = useState(true);
   const [adding, setAdding] = useState<string | null>(null);
   const [probing, setProbing] = useState<string | null>(null);
 
-  useEffect(() => {
-    gsc().detect().then((d: any) => { setData(d); setBusy(false); });
-  }, []);
+  const scan = async () => {
+    setBusy(true);
+    // re-read the recipe folder first, so a .json added since launch counts
+    await gsc().reloadRecipes();
+    const d = await gsc().detect();
+    setData(d);
+    setBusy(false);
+  };
+
+  useEffect(() => { scan(); }, []);
 
   const add = async (g: any) => {
     setAdding(g.id);
@@ -190,7 +198,10 @@ function Library({ onClose, onAdded }: { onClose: () => void; onAdded: () => voi
     <div style={{ padding: 24 }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <h2 style={{ margin: 0, fontSize: 17 }}>Detected games</h2>
-        <button onClick={onClose}>Back</button>
+        <div className="row" style={{ gap: 6 }}>
+          <button disabled={busy} onClick={scan}>{busy ? "Scanning…" : "Rescan"}</button>
+          <button onClick={onClose}>Back</button>
+        </div>
       </div>
 
       {busy && <p className="muted">Scanning Steam and Epic…</p>}
@@ -206,6 +217,13 @@ function Library({ onClose, onAdded }: { onClose: () => void; onAdded: () => voi
               onChange={(e) => setShowAll(e.target.checked)} />
             Show games with no save folder found ({(data.games ?? []).filter((g: any) => !g.savePath).length})
           </label>
+          {data.epicRoot && !(data.games ?? []).some((g: any) => g.source === "epic") && (
+            <p className="muted" style={{ fontSize: 13, marginTop: -6 }}>
+              Epic manifests were read but listed no installed game. Epic writes them on
+              install, so a game moved or installed while the launcher was signed out can
+              be missing — reopen the Epic launcher, then Rescan.
+            </p>
+          )}
 
           <div style={{ display: "grid", gap: 8 }}>
             {games.map((g: any) => {
@@ -222,6 +240,18 @@ function Library({ onClose, onAdded }: { onClose: () => void; onAdded: () => voi
                       <div className="mono muted" style={{ marginTop: 4, overflowWrap: "anywhere" }}>
                         {g.savePath ?? g.reason}
                       </div>
+                      {!g.savePath && g.tried?.length > 0 && (
+                        <details style={{ marginTop: 4 }}>
+                          <summary className="muted" style={{ fontSize: 12, cursor: "pointer" }}>
+                            {g.tried.length} folder{g.tried.length === 1 ? "" : "s"} checked
+                          </summary>
+                          <div className="mono muted" style={{ fontSize: 11, marginTop: 4 }}>
+                            {g.tried.map((t: string) => (
+                              <div key={t} style={{ overflowWrap: "anywhere" }}>{t}</div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
                     </div>
                     <div className="row" style={{ gap: 6, flexShrink: 0 }}>
                       {g.savePath && (

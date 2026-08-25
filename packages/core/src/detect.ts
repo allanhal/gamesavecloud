@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { findByAppId, findByName, firstExisting, guessSaves } from "@gsc/recipes";
+import { findByAppId, findByName, firstExisting, resolvePath, guessSaves, type Recipe, type Platform } from "@gsc/recipes";
 import { scanSteam } from "./scanners/steam";
 import { scanEpic } from "./scanners/epic";
 import type { GameConfig } from "./config";
@@ -15,8 +15,24 @@ export interface DetectedGame {
   savePath: string | null;
   tier: MatchTier;
   reason: string;
+  /** every recipe path that was checked and missed — the answer to "why not?" */
+  tried?: string[];
   /** Valve already syncs this one; ours is a versioned backup on top */
   steamCloud?: boolean;
+}
+
+/** The named platform's save list first, then every other platform's, deduped. */
+function platformSaves(recipe: Recipe, first: Platform): string[][] {
+  const order: Platform[] = [first, "steam", "epic", "gog", "xbox", "manual"];
+  const seen = new Set<Platform>();
+  const out: string[][] = [];
+  for (const p of order) {
+    if (seen.has(p)) continue;
+    seen.add(p);
+    const saves = recipe.platforms[p]?.saves;
+    if (saves?.length) out.push(saves);
+  }
+  return out;
 }
 
 const slugify = (s: string) =>
@@ -39,9 +55,16 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
     let tier: MatchTier = "none";
     let reason = "no recipe — pick the folder manually";
 
-    if (recipe?.platforms.steam?.saves) {
-      savePath = firstExisting(recipe.platforms.steam.saves, { installDir: g.installDir, steamUserId: userId });
+    const tried: string[] = [];
+    if (recipe) {
+      const ctx = { installDir: g.installDir, steamUserId: userId, appId: g.appId };
+      for (const saves of platformSaves(recipe, "steam")) {
+        savePath = firstExisting(saves, ctx);
+        if (savePath) break;
+        tried.push(...saves.map((t) => resolvePath(t, ctx)));
+      }
       if (savePath) { tier = "recipe"; reason = `recipe: ${recipe.id}`; }
+      else reason = `recipe ${recipe.id} matched, but none of its folders exist yet`;
     }
     if (!savePath) {
       const guesses = guessSaves({
@@ -59,29 +82,40 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
       id: recipe?.id ?? slugify(g.name), name: g.name, source: "steam",
       appId: g.appId, installDir: g.installDir, savePath, tier, reason,
       steamCloud: tier === "steam-cloud",
+      tried: tried.length ? [...new Set(tried)] : undefined,
     });
   }
 
   for (const g of epic.games) {
-    const recipe = findByName(g.name);
+    // Epic manifests carry an AppName, so try that before falling back to the title
+    const recipe = findByAppId("epic", g.appName) ?? findByName(g.name);
     let savePath: string | null = null;
     let tier: MatchTier = "none";
     let reason = "no recipe — pick the folder manually";
+    const tried: string[] = [];
 
-    if (recipe?.platforms.epic?.saves) {
-      savePath = firstExisting(recipe.platforms.epic.saves, { installDir: g.installDir });
+    if (recipe) {
+      // a recipe written for Steam usually names the same folders, so try every
+      // platform block rather than only the epic one
+      const ctx = { installDir: g.installDir };
+      for (const saves of platformSaves(recipe, "epic")) {
+        savePath = firstExisting(saves, ctx);
+        if (savePath) break;
+        tried.push(...saves.map((t) => resolvePath(t, ctx)));
+      }
       if (savePath) { tier = "recipe"; reason = `recipe: ${recipe.id}`; }
+      else reason = `recipe ${recipe.id} matched, but none of its folders exist yet`;
     }
     if (!savePath) {
       const guesses = guessSaves({ installDir: g.installDir, gameName: g.name });
       if (guesses.length) { savePath = guesses[0].path; tier = "engine"; reason = guesses[0].reason; }
     }
 
-    if (out.some((o) => o.id === (recipe?.id ?? slugify(g.name)))) continue;  // already found via Steam
     out.push({
       id: recipe?.id ?? slugify(g.name), name: g.name, source: "epic",
       // AppName is what com.epicgames.launcher://apps/<id> needs to launch
       appId: g.appName, installDir: g.installDir, savePath, tier, reason,
+      tried: tried.length ? [...new Set(tried)] : undefined,
     });
   }
 

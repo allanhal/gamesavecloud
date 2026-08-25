@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.1 — 2026-08-24
+
+### Fixed
+- Epic games matched recipes by display name only; the manifest's `AppName` is now
+  tried first, so a recipe can name it explicitly
+- A recipe with only a `steam` block left the Epic copy of the same game unmatched.
+  Every platform's save list is now tried, the named one first
+- Owning a game on both stores dropped the Epic entry entirely; both are listed now
+
+### Added
+- **Rescan** button in Detected games — re-reads the recipes folder, then scans again,
+  so a .json added while the app is open takes effect without a restart
+- Games with no save folder are shown by default, with an expandable list of every
+  folder that was checked, and a note when Epic manifests list nothing installed
+
 ## 0.4.0 — 2026-08-24
 
 **Portable only.** The NSIS installer and the auto-updater are gone. Every build keeps
