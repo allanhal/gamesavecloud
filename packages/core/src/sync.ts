@@ -22,19 +22,37 @@ export interface SyncResult {
   conflict?: { local: { files: number; size: number }; remote: RemoteManifest };
 }
 
+/**
+ * Transfers are reported as counts and bytes, not only a filename: a save can be
+ * hundreds of files, and a bare name says nothing about how far along it is.
+ * Rate and ETA are left to the caller, which knows the wall clock.
+ */
+export interface SyncProgress {
+  phase: "checking" | "backup" | "uploading" | "downloading" | "finalizing";
+  message: string;
+  file?: string;
+  /** files finished / files in this transfer */
+  done?: number;
+  total?: number;
+  /** bytes moved / bytes to move, over the wire (so after compression) */
+  bytesDone?: number;
+  bytesTotal?: number;
+}
+
 export interface SyncOptions {
   /** on conflict, force one side instead of stopping */
   resolve?: "local" | "remote";
   /** mark the resulting snapshot as pinned (pre-launch safety copy) */
   pinned?: boolean;
-  onProgress?: (msg: string) => void;
+  onProgress?: (p: SyncProgress) => void;
 }
 
 export async function syncGame(
   cfg: Config, game: GameConfig, opts: SyncOptions = {},
 ): Promise<SyncResult> {
   const api = new Api(cfg);
-  const log = opts.onProgress ?? (() => {});
+  const emit = opts.onProgress ?? (() => {});
+  const log = (message: string, phase: SyncProgress["phase"] = "checking") => emit({ phase, message });
   const key = stateKey(game.id, game.slot);
   const state = loadState();
   const prev = state[key] ?? { syncedVersion: 0, syncedManifestHash: "", syncedAt: "" };
@@ -45,7 +63,7 @@ export async function syncGame(
   if (!fs.existsSync(game.path)) {
     if (remote.version > 0) {
       log(`local folder missing — restoring v${remote.version}`);
-      await pull(api, game, remote, log);
+      await pull(api, game, remote, emit);
       commitState(state, key, remote.version, remoteHash);
       await report(api, cfg, game, remote.version, remoteHash, remote);
       return { game: game.id, status: "pulled", localVersion: remote.version, remoteVersion: remote.version, downloaded: remote.files.length };
@@ -81,7 +99,7 @@ export async function syncGame(
   const wantPull = opts.resolve === "remote" || (!localChanged && remoteChanged);
   if (wantPull) {
     log(`pulling v${remote.version} (${remote.files.length} files)`);
-    await pull(api, game, remote, log);
+    await pull(api, game, remote, emit);
     commitState(state, key, remote.version, remoteHash);
     await report(api, cfg, game, remote.version, remoteHash, remote);
     return { game: game.id, status: "pulled", localVersion: remote.version, remoteVersion: remote.version, downloaded: remote.files.length };
@@ -89,7 +107,7 @@ export async function syncGame(
 
   // push — baseVersion tells the server what we believe the cloud is at
   const base = opts.resolve === "local" ? remote.version : prev.syncedVersion;
-  const up = await push(api, game, local, base, cfg.device, opts.pinned ?? false, log);
+  const up = await push(api, game, local, base, cfg.device, opts.pinned ?? false, emit);
   commitState(state, key, up.version, localHash);
   await report(api, cfg, game, up.version, localHash, remote, local);
   return {
@@ -103,7 +121,7 @@ export async function syncGame(
 
 async function push(
   api: Api, game: GameConfig, local: ScannedFile[], baseVersion: number,
-  device: string, pinned: boolean, log: (m: string) => void,
+  device: string, pinned: boolean, emit: (p: SyncProgress) => void,
 ) {
   const entries = local.map((f) => ({
     path: f.path, hash: f.hash, size: f.size, codec: pickCodec(f.path, f.size) as Codec,
@@ -111,12 +129,15 @@ async function push(
 
   const uniq = [...new Map(entries.map((e) => [e.hash, e])).values()];
   const { missing } = await api.checkBlobs(uniq.map((e) => e.hash));
-  log(`${uniq.length} unique blobs, ${missing.length} to upload`);
+  emit({ phase: "checking", message: `${uniq.length} unique blobs, ${missing.length} to upload` });
 
   let uploadedBytes = 0;
   if (missing.length) {
     const need = uniq.filter((e) => missing.includes(e.hash));
     const { urls } = await api.uploadUrls(need.map((e) => ({ hash: e.hash, size: e.size })));
+    // sizes are pre-compression, so the total is an upper bound — good enough for a bar
+    const bytesTotal = need.reduce((n, e) => n + e.size, 0);
+    let done = 0;
 
     // modest concurrency: enough to saturate a home uplink, not enough to stall it
     await pool(need, 4, async (e) => {
@@ -126,10 +147,15 @@ async function push(
       const r = await fetch(urls[e.hash], { method: "PUT", body: new Uint8Array(body) });
       if (!r.ok) throw new Error(`upload failed for ${e.path}: HTTP ${r.status}`);
       uploadedBytes += body.length;
-      log(`  ↑ ${e.path}`);
+      done++;
+      emit({
+        phase: "uploading", message: `↑ ${e.path}`, file: e.path,
+        done, total: need.length, bytesDone: uploadedBytes, bytesTotal,
+      });
     });
   }
 
+  emit({ phase: "finalizing", message: "writing the snapshot" });
   const res = await api.snapshot({
     game: game.id, slot: game.slot, baseVersion, files: entries, device, pinned,
   });
@@ -138,9 +164,13 @@ async function push(
 
 /* ── pull ──────────────────────────────────────────────────────────── */
 
-async function pull(api: Api, game: GameConfig, remote: RemoteManifest, log: (m: string) => void) {
-  backupLocal(game, log);
+async function pull(api: Api, game: GameConfig, remote: RemoteManifest, emit: (p: SyncProgress) => void) {
+  backupLocal(game, emit);
   fs.mkdirSync(game.path, { recursive: true });
+
+  const bytesTotal = remote.files.reduce((n: number, f: any) => n + Number(f.size ?? 0), 0);
+  let bytesDone = 0;
+  let done = 0;
 
   await pool(remote.files, 4, async (f: any) => {
     const abs = path.join(game.path, f.path);
@@ -164,8 +194,15 @@ async function pull(api: Api, game: GameConfig, remote: RemoteManifest, log: (m:
     const tmp = `${abs}.gsc-tmp`;
     fs.writeFileSync(tmp, raw);
     fs.renameSync(tmp, abs);
-    log(`  ↓ ${f.path}`);
+    bytesDone += raw.length;
+    done++;
+    emit({
+      phase: "downloading", message: `↓ ${f.path}`, file: f.path,
+      done, total: remote.files.length, bytesDone, bytesTotal,
+    });
   });
+
+  emit({ phase: "finalizing", message: "tidying up files the snapshot does not have" });
 
   // remove local files the snapshot doesn't contain, so the folder matches exactly
   const keep = new Set(remote.files.map((f) => f.path));
@@ -175,13 +212,13 @@ async function pull(api: Api, game: GameConfig, remote: RemoteManifest, log: (m:
 }
 
 /** Never overwrite a save without keeping a copy on disk first. */
-function backupLocal(game: GameConfig, log: (m: string) => void) {
+function backupLocal(game: GameConfig, emit: (p: SyncProgress) => void) {
   if (!fs.existsSync(game.path)) return;
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const dest = path.join(configDir(), "backups", game.id, stamp);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.cpSync(game.path, dest, { recursive: true });
-  log(`  local backup → ${dest}`);
+  emit({ phase: "backup", message: `local backup → ${dest}` });
 }
 
 /* ── helpers ───────────────────────────────────────────────────────── */

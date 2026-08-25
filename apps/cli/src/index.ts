@@ -13,6 +13,13 @@ import {
 // same user recipe folder the desktop app uses: <configDir>/recipes/*.json
 addRecipeDir(path.join(configDir(), "recipes"));
 
+/** "↑ saves/slot1.dat  12/40 · 3.1 MB/8.7 MB" — counts make a long sync legible. */
+function progressLine(p: { message: string; done?: number; total?: number; bytesDone?: number; bytesTotal?: number }): string {
+  if (!p.total) return p.message;
+  const size = p.bytesTotal ? ` · ${bytes(p.bytesDone ?? 0)}/${bytes(p.bytesTotal)}` : "";
+  return `${p.message}  ${p.done}/${p.total}${size}`;
+}
+
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
   b: (s: string) => `\x1b[1m${s}\x1b[0m`,
@@ -187,7 +194,7 @@ async function cmdSync(args: string[]) {
     try {
       const r = await syncGame(cfg, g, {
         resolve,
-        onProgress: (m) => verbose && console.log(`\n  ${c.dim(m)}`),
+        onProgress: (p) => { if (verbose) console.log(`\n  ${c.dim(progressLine(p))}`); },
       });
       switch (r.status) {
         case "in-sync": console.log(c.g(`in sync (v${r.remoteVersion})`)); break;
@@ -240,7 +247,7 @@ async function cmdRestore(args: string[]) {
   const api = new Api(cfg);
   const r = await api.rollback(g.id, g.slot, version);
   console.log(c.g(`cloud is now v${r.version} (copy of v${version})`));
-  const res = await syncGame(cfg, g, { resolve: "remote", onProgress: (m) => console.log(c.dim(`  ${m}`)) });
+  const res = await syncGame(cfg, g, { resolve: "remote", onProgress: (p) => console.log(c.dim(`  ${progressLine(p)}`)) });
   console.log(c.g(`local restored — ${res.downloaded ?? 0} files`));
 }
 
@@ -251,7 +258,7 @@ async function cmdLaunch(args: string[]) {
   if (await isGameRunning(g.path)) { console.error(c.r("That game looks like it is already running.")); process.exit(1); }
 
   console.log(c.dim("syncing down before launch…"));
-  const pre = await syncGame(cfg, g, { onProgress: (m) => console.log(c.dim(`  ${m}`)) });
+  const pre = await syncGame(cfg, g, { onProgress: (p) => console.log(c.dim(`  ${progressLine(p)}`)) });
   if (pre.status === "conflict") {
     console.error(c.r("Conflict — resolve before launching:"));
     console.error(c.dim(`  gamesync sync ${g.id} --keep-local | --keep-cloud`));
@@ -268,7 +275,7 @@ async function cmdLaunch(args: string[]) {
 
   console.log(c.dim("game exited, syncing up…"));
   await new Promise((r) => setTimeout(r, 3000));   // let the last write land
-  const post = await syncGame(cfg, g, { onProgress: (m) => console.log(c.dim(`  ${m}`)) });
+  const post = await syncGame(cfg, g, { onProgress: (p) => console.log(c.dim(`  ${progressLine(p)}`)) });
   console.log(post.status === "pushed" ? c.g(`saved as v${post.localVersion}`) : c.dim(post.status));
 }
 

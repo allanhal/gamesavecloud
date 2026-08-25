@@ -131,7 +131,7 @@ async function syncAll(opts: { only?: string; resolve?: "local" | "remote" } = {
     try {
       results.push(await syncGame(cfg, g, {
         resolve: opts.resolve,
-        onProgress: (m) => send("sync:progress", { game: g.id, message: m }),
+        onProgress: (p) => send("sync:progress", { game: g.id, ...p }),
       }));
     } catch (e: any) {
       results.push({ game: g.id, status: "error", detail: e.message, localVersion: 0, remoteVersion: 0 });
@@ -240,7 +240,7 @@ ipcMain.handle("games:adopt", async (_e, game: any, folder: string) => {
   };
   cfg.games.push(gc);
   saveConfig(cfg);
-  await syncGame(cfg, gc, { onProgress: (m) => send("sync:progress", { game: gc.id, message: m }) });
+  await syncGame(cfg, gc, { onProgress: (p) => send("sync:progress", { game: gc.id, ...p }) });
   return gc;
 });
 
@@ -322,7 +322,7 @@ ipcMain.handle("history:restore", async (_e, id: string, version: number) => {
   const cfg = cfgOrThrow();
   const g = cfg.games.find((x) => x.id === id)!;
   await new Api(cfg).rollback(g.id, g.slot, version);
-  return syncGame(cfg, g, { resolve: "remote", onProgress: (m) => send("sync:progress", { game: g.id, message: m }) });
+  return syncGame(cfg, g, { resolve: "remote", onProgress: (p) => send("sync:progress", { game: g.id, ...p }) });
 });
 
 ipcMain.handle("game:launch", async (_e, id: string) => {
@@ -339,7 +339,7 @@ ipcMain.handle("game:launch", async (_e, id: string) => {
   await waitForExit(g.installDir ?? g.path, { signal: quitting.signal });
   if (quitting.signal.aborted) return { ok: false, reason: "quitting" };
   await new Promise((r) => setTimeout(r, 3000));
-  const post = await syncGame(cfg, g, { onProgress: (m) => send("sync:progress", { game: g.id, message: m }) });
+  const post = await syncGame(cfg, g, { onProgress: (p) => send("sync:progress", { game: g.id, ...p }) });
   return { ok: true, post };
 });
 

@@ -22,6 +22,15 @@ const ago = (d: string | number | Date) => {
   return `${Math.round(h / 24)}d ago`;
 };
 
+/** "8s", "2m 10s", "1h 4m" — short enough to sit inside a progress line. */
+const duration = (secs: number) => {
+  const s = Math.round(secs);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+};
+
 const STATUS: Record<string, { label: string; color: string }> = {
   "in-sync": { label: "In sync", color: "var(--accent)" },
   "local-ahead": { label: "Local changes", color: "var(--warn)" },
@@ -335,6 +344,43 @@ function History({ game, onClose }: { game: any; onClose: () => void }) {
 
 /* ── main ───────────────────────────────────────────────────────────── */
 
+/** Bar, counts, rate and ETA for a running transfer; a plain line for the rest. */
+function Progress({ p }: { p: any }) {
+  const transferring = p.total > 0 && p.phase !== "finalizing";
+  if (!transferring) {
+    return <div style={{ color: "var(--accent)", fontSize: 12, marginTop: 4 }}>{p.message}</div>;
+  }
+
+  const pct = p.bytesTotal ? Math.min(100, Math.round((p.bytesDone / p.bytesTotal) * 100))
+    : Math.round((p.done / p.total) * 100);
+
+  // rate over this transfer, not since the first byte of the whole sync
+  const secs = Math.max(0.001, (p.at - p.startedAt) / 1000);
+  const moved = Math.max(0, (p.bytesDone ?? 0) - (p.startBytes ?? 0));
+  const rate = secs > 0.5 ? moved / secs : 0;
+  const left = p.bytesTotal ? Math.max(0, p.bytesTotal - p.bytesDone) : 0;
+  const eta = rate > 0 && left > 0 ? left / rate : null;
+
+  const verb = p.phase === "downloading" ? "Downloading" : p.phase === "uploading" ? "Uploading" : "Working";
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,.08)", overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: "var(--accent)", transition: "width .2s" }} />
+      </div>
+      <div className="row" style={{ gap: 8, fontSize: 12, marginTop: 4, color: "var(--accent)" }}>
+        <span>{verb} {p.done}/{p.total}</span>
+        {p.bytesTotal > 0 && <span className="muted">{bytes(p.bytesDone)} / {bytes(p.bytesTotal)}</span>}
+        {rate > 0 && <span className="muted">{bytes(rate)}/s</span>}
+        {eta !== null && <span className="muted">~{duration(eta)} left</span>}
+      </div>
+      {p.file && (
+        <div className="mono muted" style={{ fontSize: 11, marginTop: 2, overflowWrap: "anywhere" }}>{p.file}</div>
+      )}
+    </div>
+  );
+}
+
 function StatusLine() {
   const [ver, setVer] = useState("");
   const [portable, setPortable] = useState<string | null>(null);
@@ -365,7 +411,7 @@ function App() {
   const [games, setGames] = useState<any[]>([]);
   const [view, setView] = useState<"list" | "library">("list");
   const [historyFor, setHistoryFor] = useState<any>(null);
-  const [progress, setProgress] = useState<Record<string, string>>({});
+  const [progress, setProgress] = useState<Record<string, any>>({});
   const [syncing, setSyncing] = useState(false);
   const [cloud, setCloud] = useState<any[]>([]);
   const [adopting, setAdopting] = useState<string | null>(null);
@@ -381,7 +427,12 @@ function App() {
 
   useEffect(() => {
     refresh();
-    gsc().onProgress((p: any) => setProgress((s) => ({ ...s, [p.game]: p.message })));
+    gsc().onProgress((p: any) => setProgress((s) => {
+      // keep the first sighting of this transfer, so rate is measured over it
+      const startedAt = s[p.game]?.phase === p.phase ? s[p.game].startedAt : Date.now();
+      const startBytes = s[p.game]?.phase === p.phase ? s[p.game].startBytes ?? 0 : (p.bytesDone ?? 0);
+      return { ...s, [p.game]: { ...p, startedAt, startBytes, at: Date.now() } };
+    }));
     gsc().onDone(() => { setProgress({}); setSyncing(false); refresh(); });
     gsc().onBackground(() => refresh());
   }, [refresh]);
@@ -503,7 +554,7 @@ function App() {
                   local v{g.localVersion} · cloud v{g.cloudVersion} · {g.localFiles} files · {bytes(g.localSize)}
                 </div>
                 <div className="mono muted" style={{ marginTop: 3, overflowWrap: "anywhere" }}>{g.path}</div>
-                {progress[g.id] && <div style={{ color: "var(--accent)", fontSize: 12, marginTop: 4 }}>{progress[g.id]}</div>}
+                {progress[g.id] && <Progress p={progress[g.id]} />}
               </div>
 
               <div className="row" style={{ gap: 6, flexShrink: 0 }}>

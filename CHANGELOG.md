@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Sync shows real progress: a bar, files done of total, bytes moved of total, transfer
+  rate and an ETA. A filename alone said nothing about how long a save would take
+- The CLI prints the same counts on each line when syncing verbosely
+
 ## 0.4.7 — 2026-08-25
 
 ### Changed
