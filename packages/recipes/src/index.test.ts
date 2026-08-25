@@ -8,8 +8,16 @@ import { findByAppId, findByName, getRecipe, recipes, addRecipeDir, reloadRecipe
 test("loads the bundled json recipes", () => {
   assert.deepEqual(
     recipes().map((recipe) => recipe.id).sort(),
-    ["detroit-become-human", "snowrunner"],
+    ["detroit-become-human", "hyper-echelon", "snowrunner"],
   );
+});
+
+test("every bundled recipe names save paths for each platform it claims", () => {
+  for (const recipe of recipes()) {
+    for (const [platform, cfg] of Object.entries(recipe.platforms)) {
+      assert.ok(cfg?.saves?.length, `${recipe.id}/${platform} has no saves`);
+    }
+  }
 });
 
 test("looks up recipes by stable id", () => {

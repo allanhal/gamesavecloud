@@ -1,0 +1,25 @@
+{
+  "id": "hyper-echelon",
+  "name": "Hyper Echelon",
+  "platforms": {
+    "epic": {
+      "saves": [
+        "<winLocalLow>/GangoGames LLC/Hyper Echelon",
+        "<winLocalLow>/GangoGames LLC/HyperEchelon",
+        "<winLocalLow>/GangoGames/Hyper Echelon",
+        "<winLocalLow>/GangoGames LLC"
+      ]
+    },
+    "steam": {
+      "appId": "953330",
+      "saves": [
+        "<winLocalLow>/GangoGames LLC/Hyper Echelon",
+        "<winLocalLow>/GangoGames LLC/HyperEchelon",
+        "<winLocalLow>/GangoGames/Hyper Echelon",
+        "<winLocalLow>/GangoGames LLC"
+      ]
+    }
+  },
+  "exclude": ["**/*.log", "**/output_log*.txt", "**/Player.log", "**/Crashes/**"],
+  "notes": "Unity title — saves sit under LocalLow/<company>/<product>. The company folder is listed last as a fallback for a differently named product folder. VERIFY on disk; the Epic AppName is filled in at runtime by detect."
+}

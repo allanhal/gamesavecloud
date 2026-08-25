@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Recipe for **Hyper Echelon** (Epic and Steam) — a Unity title saving under
+  `LocalLow/GangoGames LLC`
+
 ## 0.4.8 — 2026-08-25
 
 ### Added
