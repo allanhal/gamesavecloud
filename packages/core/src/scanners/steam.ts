@@ -31,18 +31,30 @@ export function findSteamRoot(): string | null {
   return guesses.find((g) => g && fs.existsSync(g)) ?? null;
 }
 
+/**
+ * Dedupe key for a folder. The registry hands back "c:/program files
+ * (x86)/steam" while libraryfolders.vdf says "C:\\Program Files (x86)\\Steam" —
+ * the same directory in two spellings, which used to scan every game twice.
+ */
+export function pathKey(p: string): string {
+  // a drive letter or a backslash means Windows rules, whatever we run on
+  const windows = process.platform === "win32" || /^[a-zA-Z]:|\\\\/.test(p);
+  const norm = (windows ? path.win32 : path.posix).normalize(p).replace(/[\\/]+$/, "");
+  return windows ? norm.toLowerCase() : norm;
+}
+
 export function steamLibraries(steamRoot: string): string[] {
   const vdf = path.join(steamRoot, "steamapps", "libraryfolders.vdf");
-  const roots = new Set<string>([steamRoot]);
+  const roots = new Map<string, string>([[pathKey(steamRoot), steamRoot]]);
   try {
     const parsed = parseVdf(fs.readFileSync(vdf, "utf8"));
     const lf = parsed.libraryfolders ?? parsed.LibraryFolders ?? {};
     for (const v of Object.values<any>(lf)) {
       const p = typeof v === "string" ? v : v?.path;
-      if (p && fs.existsSync(p)) roots.add(p);
+      if (p && fs.existsSync(p) && !roots.has(pathKey(p))) roots.set(pathKey(p), p);
     }
   } catch { /* single-library install */ }
-  return [...roots];
+  return [...roots.values()];
 }
 
 /** Steam user ids that have local data — used for Steam Cloud remote folders. */
@@ -58,7 +70,8 @@ export function scanSteam(): { root: string | null; games: SteamGame[]; userIds:
   const root = findSteamRoot();
   if (!root) return { root: null, games: [], userIds: [] };
 
-  const games: SteamGame[] = [];
+  // by appId: a game can also be listed by two libraries after a move
+  const byId = new Map<string, SteamGame>();
   for (const lib of steamLibraries(root)) {
     const dir = path.join(lib, "steamapps");
     let files: string[];
@@ -70,13 +83,16 @@ export function scanSteam(): { root: string | null; games: SteamGame[]; userIds:
         if (!st?.appid || !st?.name) continue;
         // Steamworks redistributables and runtimes are not games
         if (/^(Steamworks|Proton|Steam Linux Runtime)/i.test(st.name)) continue;
-        games.push({
-          appId: String(st.appid), name: st.name,
+        const appId = String(st.appid);
+        if (byId.has(appId)) continue;
+        byId.set(appId, {
+          appId, name: st.name,
           installDir: path.join(dir, "common", st.installdir ?? st.name),
           libraryRoot: lib,
         });
       } catch { /* corrupt manifest — skip */ }
     }
   }
-  return { root, games: games.sort((a, b) => a.name.localeCompare(b.name)), userIds: steamUserIds(root) };
+  const games = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return { root, games, userIds: steamUserIds(root) };
 }

@@ -119,7 +119,16 @@ export function detectGames(): { steamRoot: string | null; epicRoot: string | nu
     });
   }
 
-  return { steamRoot: steam.root, epicRoot: epic.root, games: out };
+  // last line of defence: one card per game per store, whatever the scanners saw
+  const seen = new Set<string>();
+  const games = out.filter((g) => {
+    const key = `${g.source}:${g.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return { steamRoot: steam.root, epicRoot: epic.root, games };
 }
 
 export function toGameConfig(d: DetectedGame): GameConfig | null {
