@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { createRoot } from "react-dom/client";
+import { foldProgress, rateOf, etaOf, type ProgressEntry } from "./progress";
 
 declare global { interface Window { gsc: any } }
 const gsc = () => window.gsc;
@@ -349,21 +350,18 @@ function History({ game, onClose }: { game: any; onClose: () => void }) {
 /* ── main ───────────────────────────────────────────────────────────── */
 
 /** Bar, counts, rate and ETA for a running transfer; a plain line for the rest. */
-function Progress({ p }: { p: any }) {
-  const transferring = p.total > 0 && p.phase !== "finalizing";
+function Progress({ p }: { p: ProgressEntry }) {
+  const transferring = Boolean(p.total) && p.phase !== "finalizing";
   if (!transferring) {
     return <div style={{ color: "var(--accent)", fontSize: 12, marginTop: 4 }}>{p.message}</div>;
   }
 
-  const pct = p.bytesTotal ? Math.min(100, Math.round((p.bytesDone / p.bytesTotal) * 100))
-    : Math.round((p.done / p.total) * 100);
+  const pct = p.bytesTotal
+    ? Math.min(100, Math.round(((p.bytesDone ?? 0) / p.bytesTotal) * 100))
+    : Math.round(((p.done ?? 0) / (p.total || 1)) * 100);
 
-  // rate over this transfer, not since the first byte of the whole sync
-  const secs = Math.max(0.001, (p.at - p.startedAt) / 1000);
-  const moved = Math.max(0, (p.bytesDone ?? 0) - (p.startBytes ?? 0));
-  const rate = secs > 0.5 ? moved / secs : 0;
-  const left = p.bytesTotal ? Math.max(0, p.bytesTotal - p.bytesDone) : 0;
-  const eta = rate > 0 && left > 0 ? left / rate : null;
+  const rate = rateOf(p);
+  const eta = etaOf(p);
 
   const verb = p.phase === "downloading" ? "Downloading" : p.phase === "uploading" ? "Uploading" : "Working";
 
@@ -374,7 +372,9 @@ function Progress({ p }: { p: any }) {
       </div>
       <div className="row" style={{ gap: 8, fontSize: 12, marginTop: 4, color: "var(--accent)" }}>
         <span>{verb} {p.done}/{p.total}</span>
-        {p.bytesTotal > 0 && <span className="muted">{bytes(p.bytesDone)} / {bytes(p.bytesTotal)}</span>}
+        {Boolean(p.bytesTotal) && (
+          <span className="muted">{bytes(p.bytesDone ?? 0)} / {bytes(p.bytesTotal!)}</span>
+        )}
         {rate > 0 && <span className="muted">{bytes(rate)}/s</span>}
         {eta !== null && <span className="muted">~{duration(eta)} left</span>}
       </div>
@@ -415,7 +415,7 @@ function App() {
   const [games, setGames] = useState<any[]>([]);
   const [view, setView] = useState<"list" | "library">("list");
   const [historyFor, setHistoryFor] = useState<any>(null);
-  const [progress, setProgress] = useState<Record<string, any>>({});
+  const [progress, setProgress] = useState<Record<string, ProgressEntry>>({});
   const [syncing, setSyncing] = useState(false);
   const [cloud, setCloud] = useState<any[]>([]);
   const [adopting, setAdopting] = useState<string | null>(null);
@@ -431,12 +431,7 @@ function App() {
 
   useEffect(() => {
     refresh();
-    gsc().onProgress((p: any) => setProgress((s) => {
-      // keep the first sighting of this transfer, so rate is measured over it
-      const startedAt = s[p.game]?.phase === p.phase ? s[p.game].startedAt : Date.now();
-      const startBytes = s[p.game]?.phase === p.phase ? s[p.game].startBytes ?? 0 : (p.bytesDone ?? 0);
-      return { ...s, [p.game]: { ...p, startedAt, startBytes, at: Date.now() } };
-    }));
+    gsc().onProgress((p: any) => setProgress((s) => foldProgress(s, p)));
     gsc().onDone(() => { setProgress({}); setSyncing(false); refresh(); });
     gsc().onBackground(() => refresh());
   }, [refresh]);
@@ -604,4 +599,49 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+/**
+ * React unmounts the whole tree on an uncaught render error, which showed up as
+ * a blank window with no way to tell what broke. Show the error instead, and
+ * write it to the log the main process keeps.
+ */
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err: any }> {
+  state = { err: null as any };
+
+  static getDerivedStateFromError(err: any) { return { err }; }
+
+  componentDidCatch(err: any, info: any) {
+    gsc()?.logError?.(`render: ${err?.stack ?? err}\n${info?.componentStack ?? ""}`);
+  }
+
+  render() {
+    if (!this.state.err) return this.props.children;
+    const err = this.state.err;
+    return (
+      <div style={{ padding: 24 }}>
+        <h2 style={{ marginTop: 0, fontSize: 17, color: "var(--danger)" }}>Something broke</h2>
+        <p className="muted" style={{ fontSize: 13 }}>
+          The window would otherwise have gone blank. This is written to
+          <span className="mono"> gamesavecloud-data/logs/app.log</span> too.
+        </p>
+        <pre className="mono" style={{
+          padding: 12, background: "rgba(0,0,0,.25)", border: "1px solid var(--line)",
+          borderRadius: 8, overflowX: "auto", fontSize: 11, whiteSpace: "pre-wrap",
+        }}>{String(err?.stack ?? err)}</pre>
+        <div className="row" style={{ gap: 6 }}>
+          <button className="primary" onClick={() => location.reload()}>Reload</button>
+          <button onClick={() => gsc().copy(String(err?.stack ?? err))}>Copy error</button>
+          <button onClick={() => gsc().openLogs()}>Open logs folder</button>
+        </div>
+      </div>
+    );
+  }
+}
+
+// anything that escapes React entirely still reaches the log
+window.addEventListener("error", (e) => gsc()?.logError?.(`window: ${e.error?.stack ?? e.message}`));
+window.addEventListener("unhandledrejection", (e: any) =>
+  gsc()?.logError?.(`promise: ${e.reason?.stack ?? e.reason}`));
+
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary><App /></ErrorBoundary>,
+);

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Sync all blanked the window.** The progress reducer treated a first, phase-less event
+  as belonging to an existing transfer and read state that was not there; the throw came
+  from inside a state updater, so React unmounted everything. The fold is a tested
+  function now
+
+### Added
+- An error boundary: a render error shows the stack, with Copy error and Reload, instead
+  of a blank window
+- `gamesavecloud-data/logs/app.log` collects renderer errors, main-process exceptions and
+  unhandled rejections
+
 ## 0.4.10 — 2026-08-25
 
 ### Changed

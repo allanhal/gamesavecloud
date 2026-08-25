@@ -127,7 +127,7 @@ async function syncAll(opts: { only?: string; resolve?: "local" | "remote" } = {
   const list = opts.only ? cfg.games.filter((g) => g.id === opts.only) : cfg.games.filter((g) => g.enabled);
   const results = [];
   for (const g of list) {
-    send("sync:progress", { game: g.id, message: "syncing…" });
+    send("sync:progress", { game: g.id, phase: "checking", message: "syncing…" });
     try {
       results.push(await syncGame(cfg, g, {
         resolve: opts.resolve,
@@ -334,7 +334,7 @@ ipcMain.handle("game:launch", async (_e, id: string) => {
 
   await syncGame(cfg, g, { resolve: "local", pinned: true }).catch(() => {});
   launchGame(g);
-  send("sync:progress", { game: g.id, message: "waiting for the game to exit…" });
+  send("sync:progress", { game: g.id, phase: "checking", message: "waiting for the game to exit…" });
 
   await waitForExit(g.installDir ?? g.path, { signal: quitting.signal });
   if (quitting.signal.aborted) return { ok: false, reason: "quitting" };
@@ -352,6 +352,31 @@ ipcMain.handle("clipboard:write", (_e, text: string) => clipboard.writeText(text
 ipcMain.handle("shell:openConfigDir", () => shell.openPath(configDir()));
 ipcMain.handle("shell:openPath", (_e, p: string) => shell.openPath(p));
 ipcMain.handle("app:portable", () => (isPortable() ? configDir() : null));
+
+/**
+ * One log file beside the config, so a crash on someone else's machine can be
+ * read back. Renderer errors, main-process errors and unhandled rejections all
+ * land here; it is truncated when it gets long rather than rotated.
+ */
+function logPath() { return path.join(configDir(), "logs", "app.log"); }
+
+function logLine(text: string) {
+  try {
+    const file = logPath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    if (fs.existsSync(file) && fs.statSync(file).size > 2_000_000) fs.rmSync(file);
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${text}\n`);
+  } catch { /* logging must never break the app */ }
+}
+
+ipcMain.on("log:error", (_e, text: string) => { console.error(text); logLine(text); });
+ipcMain.handle("log:open", () => {
+  fs.mkdirSync(path.dirname(logPath()), { recursive: true });
+  shell.openPath(path.dirname(logPath()));
+});
+
+process.on("uncaughtException", (e) => logLine(`main uncaught: ${e?.stack ?? e}`));
+process.on("unhandledRejection", (e: any) => logLine(`main rejection: ${e?.stack ?? e}`));
 
 /** Quitting from the UI, for when the tray icon is hidden in the overflow area. */
 ipcMain.handle("app:quit", () => quitApp());

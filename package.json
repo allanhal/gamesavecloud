@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --import tsx --test \"packages/**/*.test.ts\" \"src/**/*.test.ts\" \"src/**/*.test.tsx\" \"app/**/*.test.ts\" \"app/**/*.test.tsx\"",
+    "test": "node --import tsx --test \"packages/**/*.test.ts\" \"src/**/*.test.ts\" \"src/**/*.test.tsx\" \"app/**/*.test.ts\" \"app/**/*.test.tsx\" \"apps/**/src/**/*.test.ts\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/server/migrate.ts",
     "db:studio": "drizzle-kit studio",

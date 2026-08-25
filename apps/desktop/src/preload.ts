@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld("gsc", {
   saveRecipe: (id: string, json: string) => ipcRenderer.invoke("recipes:save", id, json),
 
   quit: () => ipcRenderer.invoke("app:quit"),
+  logError: (text: string) => ipcRenderer.send("log:error", text),
+  openLogs: () => ipcRenderer.invoke("log:open"),
   appVersion: () => ipcRenderer.invoke("app:version"),
   portableDir: () => ipcRenderer.invoke("app:portable"),
 
