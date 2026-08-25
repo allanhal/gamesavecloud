@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.8 — 2026-08-25
 
 ### Added
 - Sync shows real progress: a bar, files done of total, bytes moved of total, transfer
