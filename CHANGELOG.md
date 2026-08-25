@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.10 — 2026-08-25
 
 ### Changed
 - Save-folder candidates show minutes and hours, not just whole days: everything written
