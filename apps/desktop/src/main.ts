@@ -11,8 +11,6 @@ import {
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
-/** the "it went to the tray" balloon is shown once per run, not every close */
-let hintShown = false;
 /** aborted on quit, so the game-exit poll stops instead of outliving the window */
 const quitting = new AbortController();
 
@@ -73,20 +71,9 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false },
   });
   win.loadFile(path.join(__dirname, "index.html"));
-  win.on("close", (e) => {
-    // closing hides to tray; quitting is explicit, so background sync survives
-    if ((app as any).isQuitting) return;
-    e.preventDefault();
-    win?.hide();
-    // the app still holds its own folder open while it runs, so say where it went
-    if (!hintShown) {
-      hintShown = true;
-      tray?.displayBalloon?.({
-        title: "gamesavecloud is still running",
-        content: "Syncing continues in the background. Right-click the tray icon and choose Quit to close it completely.",
-      });
-    }
-  });
+  // closing the window closes the app: a process that outlives its window keeps
+  // the install folder locked on Windows, and nothing on screen says why
+  win.on("closed", () => { win = null; });
 }
 
 function createTray() {
@@ -96,12 +83,12 @@ function createTray() {
   tray = new Tray(img);
   tray.setToolTip("gamesavecloud");
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "Open", click: () => { win?.show(); } },
+    { label: "Open", click: () => { if (win) win.show(); else createWindow(); } },
     { label: "Sync all now", click: () => syncAll() },
     { type: "separator" },
     { label: "Quit", click: () => quitApp() },
   ]));
-  tray.on("click", () => win?.show());
+  tray.on("click", () => { if (win) win.show(); else createWindow(); });
 }
 
 /**
@@ -430,4 +417,5 @@ app.on("before-quit", () => {
   tray = null;
 });
 
-app.on("window-all-closed", () => { /* stay alive in the tray */ });
+// no window, no app — background sync runs while gamesavecloud is open
+app.on("window-all-closed", () => quitApp());

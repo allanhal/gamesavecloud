@@ -351,7 +351,6 @@ function StatusLine() {
     {portable
       ? <>settings stored in <span className="mono">{portable}</span> — update by downloading a new zip</>
       : <>running from source — settings stored in the usual config folder</>}
-    {" · closing this window keeps it running in the tray — use Quit to exit"}
     {recipes && <>
       {" · "}
       <a href="#" style={{ color: "var(--accent)" }} onClick={(e) => { e.preventDefault(); gsc().openRecipes(); }}>
@@ -423,9 +422,7 @@ function App() {
         <h1 style={{ fontSize: 19, margin: 0 }}>gamesavecloud</h1>
         <div className="row">
           <button onClick={() => gsc().openWeb()}>Web dashboard</button>
-          {/* closing the window only hides to the tray, so offer the real exit here */}
-          <button title="Close the app completely — closing the window keeps it running in the tray"
-            onClick={() => gsc().quit()}>Quit</button>
+          <button title="Close the app" onClick={() => gsc().quit()}>Quit</button>
           <button onClick={() => setView("library")}>Scan for games</button>
           <button className="primary" onClick={syncAll} disabled={syncing}>
             {syncing ? "Syncing…" : "Sync all"}

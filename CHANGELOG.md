@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Closing the window now quits the app. It used to hide to the tray and keep syncing,
+  which left gamesavecloud.exe running, kept the install folder locked on Windows, and
+  gave no on-screen sign that anything was still alive. The tray icon remains while the
+  app is open; background sync runs while it is open
+
 ## 0.4.6 — 2026-08-25
 
 ### Added
