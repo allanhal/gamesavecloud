@@ -41,11 +41,20 @@ export default async function DownloadPage() {
     <main className="mx-auto max-w-3xl px-6 py-12">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold tracking-tight">gamesavecloud for Windows</h1>
-        <Link href="/"><Button variant="ghost">Dashboard</Button></Link>
+        <div className="flex items-center gap-2">
+          <a href="https://github.com/allanhal/gamesavecloud" target="_blank" rel="noreferrer">
+            <Button variant="ghost">GitHub</Button>
+          </a>
+          <Link href="/"><Button variant="ghost">Dashboard</Button></Link>
+        </div>
       </div>
       <p className="mt-2 text-[var(--color-muted)]">
         Scans Steam and Epic, syncs your saves, and keeps every version so a corrupted
-        save is one click from being restored.
+        save is one click from being restored. Open source (MIT) —{" "}
+        <a className="text-[var(--color-accent)] hover:underline"
+          href="https://github.com/allanhal/gamesavecloud" target="_blank" rel="noreferrer">
+          read the code on GitHub
+        </a>.
       </p>
 
       {versions.length === 0 && (
