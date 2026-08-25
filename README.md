@@ -119,9 +119,20 @@ AZURE_SIGN_PROFILE    certificate profile name
 AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET
 ```
 
-Azure Trusted Signing is the cheap route (~$10/month, and it validates individuals, not
-just companies); a bought OV/EV certificate works too via electron-builder's
-`signtoolOptions`. Every CI build prints the Authenticode status and warns when unsigned.
+Two routes are wired:
+
+- **SignPath Foundation** — free for open source, and the reason this repo is public and
+  MIT licensed. Once the project is approved, set `SIGNPATH_API_TOKEN` and
+  `SIGNPATH_ORG_ID` as repo secrets and CI submits each build for signing.
+- **Azure Trusted Signing** — ~$10/month, validates individuals as well as companies.
+  Set the `AZURE_*` variables above and `dist.mjs` signs during the build.
+
+A bought OV/EV certificate also works through electron-builder's `signtoolOptions`.
+Every CI build prints the Authenticode status and warns when unsigned.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ## Adding a game recipe
 

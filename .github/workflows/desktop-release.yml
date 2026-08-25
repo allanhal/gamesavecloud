@@ -78,6 +78,23 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
 
+      # SignPath signs from their side: the unsigned artifacts are uploaded, run
+      # through the project's signing policy, and come back signed. Free for OSS
+      # projects, and it only runs once the project is approved and the secrets set.
+      - name: Sign with SignPath
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: gamesavecloud
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: apps/desktop/release
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+
       - name: Report signing status
         shell: pwsh
         run: |
@@ -96,6 +113,7 @@ jobs:
           foreach ($f in $files) { Write-Host "built $($f.Name) — $([math]::Round($f.Length/1MB)) MB" }
 
       - uses: actions/upload-artifact@v4
+        id: artifact
         with:
           name: gamesavecloud-windows
           path: |
