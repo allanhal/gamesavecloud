@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 — 2026-08-25
+
+Portable Windows build.
+
 ## 0.4.2 — 2026-08-25
 
 ### Fixed
