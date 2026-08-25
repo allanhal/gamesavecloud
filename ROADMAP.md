@@ -103,10 +103,10 @@ Self-hosted Steam Cloud for any game. Single user (my PCs). Neon = metadata, R2 
 - [x] Conflict dialog with side-by-side local vs cloud
 - [x] Version history + one-click restore
 - [x] Tray icon, run at login, background watch
-- [x] Windows installer built (NSIS, x64 + arm64), published to R2
+- [x] Portable Windows builds (zip x64 + arm64, single exe x64), published to R2
 - [x] Public /download page with version, size, SHA-256
-- [ ] Signed installer (SmartScreen) — needs a code-signing cert
-- [ ] Auto-update feed
+- [x] Recipes as drop-in .json files, loaded from the user's data folder
+- [ ] Signed builds (SmartScreen) — needs a code-signing cert
 
 ---
 

@@ -1,9 +1,9 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage, clipboard } from "electron";
 import path from "node:path";
-import { initUpdater, checkNow, installNow, getUpdateState } from "./updater";
 import fs from "node:fs";
 import {
   loadConfig, saveConfig, defaultConfig, configDir, setConfigDir, isPortable, loadState, stateKey,
+  addRecipeDir, reloadRecipes,
   Api, syncGame, detectGames, toGameConfig, scanDir, manifestHashSync,
   launchGame, waitForExit, isGameRunning, findSaveCandidates, renderRecipe,
   type Config, type GameConfig,
@@ -13,24 +13,21 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
 /**
- * Portable mode, decided before anything reads config.
+ * The app only ships portable, so a packaged build always keeps its data in
+ * `gamesavecloud-data` beside the exe — copy that folder to another PC (or a
+ * USB stick) and the config, sync state and recipes travel with it.
  *
- * - the `portable` target sets PORTABLE_EXECUTABLE_DIR for us
- * - the zip build ships a `portable.txt` marker beside the exe
- * - a user can also force it by creating `gamesavecloud-data` next to the exe
- *
- * The installed build has none of these, so it keeps using %APPDATA% and
- * survives being replaced by an update.
+ * `PORTABLE_EXECUTABLE_DIR` is set by the single-exe target, which unpacks
+ * itself to a temp folder; the real exe location only comes from there.
+ * Unwritable media (a read-only stick) falls back to %APPDATA% rather than
+ * failing to start.
  */
 function resolvePortable(): string | null {
   const exeDir = process.env.PORTABLE_EXECUTABLE_DIR
     ?? (app.isPackaged ? path.dirname(app.getPath("exe")) : null);
-  if (!exeDir) return null;
+  if (!exeDir) return null;   // dev run — use the normal config location
 
   const dataDir = path.join(exeDir, "gamesavecloud-data");
-  const marked = fs.existsSync(path.join(exeDir, "portable.txt")) || fs.existsSync(dataDir);
-  if (!process.env.PORTABLE_EXECUTABLE_DIR && !marked) return null;
-
   try {
     fs.mkdirSync(dataDir, { recursive: true });
     // prove it is writable before committing — read-only media would break silently
@@ -39,12 +36,16 @@ function resolvePortable(): string | null {
     fs.rmSync(probe);
     return dataDir;
   } catch {
-    return null;   // fall back to %APPDATA% rather than failing to start
+    return null;
   }
 }
 
 const portableDir = resolvePortable();
 if (portableDir) setConfigDir(portableDir);
+
+// user recipes live beside the config, so adding a game is dropping in a .json
+const userRecipeDir = path.join(configDir(), "recipes");
+addRecipeDir(userRecipeDir);
 
 function createWindow() {
   win = new BrowserWindow({
@@ -269,9 +270,28 @@ ipcMain.handle("clipboard:write", (_e, text: string) => clipboard.writeText(text
 ipcMain.handle("shell:openConfigDir", () => shell.openPath(configDir()));
 ipcMain.handle("shell:openPath", (_e, p: string) => shell.openPath(p));
 ipcMain.handle("app:portable", () => (isPortable() ? configDir() : null));
-ipcMain.handle("update:state", () => (isPortable() ? { phase: "portable" } : getUpdateState()));
-ipcMain.handle("update:check", () => checkNow());
-ipcMain.handle("update:install", () => installNow(win));
+
+ipcMain.handle("recipes:dir", () => userRecipeDir);
+
+/** Opens the folder so a user can drop in or edit a .json recipe. */
+ipcMain.handle("recipes:open", () => {
+  fs.mkdirSync(userRecipeDir, { recursive: true });
+  shell.openPath(userRecipeDir);
+});
+
+ipcMain.handle("recipes:reload", () => { reloadRecipes(); });
+
+/** Saves a probed recipe as <id>.json so the next detect run picks the game up. */
+ipcMain.handle("recipes:save", (_e, id: string, json: string) => {
+  const safe = id.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
+  if (!safe) throw new Error("That recipe has no usable id.");
+  JSON.parse(json);   // refuse to write a file the loader would then skip
+  fs.mkdirSync(userRecipeDir, { recursive: true });
+  const file = path.join(userRecipeDir, `${safe}.json`);
+  fs.writeFileSync(file, json);
+  reloadRecipes();
+  return file;
+});
 ipcMain.handle("app:version", () => app.getVersion());
 
 ipcMain.handle("shell:openWeb", () => {
@@ -300,8 +320,6 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startBackgroundSync();
-  // a portable folder cannot be replaced by the NSIS updater, so don't offer it
-  if (!isPortable()) initUpdater(() => win);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

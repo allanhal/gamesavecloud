@@ -70,35 +70,23 @@ pnpm cli watch                  # background daemon
 
 ```bash
 pnpm desktop                    # run it locally
-pnpm desktop:dist               # NSIS installers (x64 + arm64)
-pnpm -F @gsc/desktop dist:portable   # portable zip + single-exe builds
-pnpm -F @gsc/desktop dist:all        # both
+pnpm desktop:dist               # portable zip (x64 + arm64) + single-exe (x64)
 pnpm release                    # upload everything to R2, list it on /download
 ```
 
-Two flavours ship per release:
+The app ships **portable only** — no installer, no auto-update. A packaged build keeps
+its data in `gamesavecloud-data` beside the exe, so the folder carries config, sync
+state and your own recipes to another PC or a USB stick. If that folder is not writable
+(read-only media) the app falls back to `%APPDATA%` rather than failing to start.
 
-| Flavour | Data lives in | Auto-updates |
-|---|---|---|
-| Installer (NSIS) | `%APPDATA%/gamesavecloud` | yes |
-| Portable (zip / single exe) | `gamesavecloud-data` beside the exe | no |
-
-Portable mode is detected at startup from `PORTABLE_EXECUTABLE_DIR`, a `portable.txt`
-beside the exe (shipped in the portable artifacts), or a `gamesavecloud-data` folder the
-user creates. If that folder is not writable the app falls back to `%APPDATA%` rather
-than failing to start. The installed build has none of those markers, so an update
-replacing its folder never loses your config.
-
-Auto-update is deliberately not offered in portable mode — the NSIS updater cannot
-replace an extracted directory.
-
-Cross-building the Windows installer from macOS works and needs `wine`
-(`brew install --cask wine-stable`). Output lands in `apps/desktop/release/`.
+Updating is downloading a newer zip and replacing the files, keeping
+`gamesavecloud-data`. Builds run on a Windows runner (`.github/workflows/desktop-release.yml`);
+output lands in `apps/desktop/release/`.
 
 Bump `version` in `apps/desktop/package.json` before `pnpm release`, or pass one:
 `pnpm release 0.2.0 --notes "conflict dialog fixes"`.
 
-Installers are served from R2 via short-lived presigned URLs; `/download` is public
+Artifacts are served from R2 via short-lived presigned URLs; `/download` is public
 on purpose, since you need the app on a fresh PC before you have a token.
 
 **Builds are unsigned**, so Windows SmartScreen shows a warning — *More info → Run
@@ -106,29 +94,38 @@ anyway*. Signing needs a code-signing certificate.
 
 ## Adding a game recipe
 
-Save paths can't be detected generically, so exact ones live in code. Three tiers
+Save paths can't be detected generically, so exact ones live in recipe files. Three tiers
 resolve a folder: a recipe, an engine heuristic (Unity `app.info`, Unreal
 `Saved/SaveGames`, Godot, Steam Cloud `remote`), then the user picking a folder.
 
-Add `packages/recipes/src/games/<id>.ts`:
+Recipes are plain JSON files, one game each, read at startup from:
 
-```ts
-import { defineRecipe } from "../types";
+1. the recipes bundled with the app (`packages/recipes/games/*.json`)
+2. `gamesavecloud-data/recipes/*.json` in a portable install (`<configDir>/recipes` elsewhere)
+3. `$GSC_RECIPES_DIR`, for one-off overrides
 
-export default defineRecipe({
-  id: "hollow-knight",
-  name: "Hollow Knight",
-  platforms: {
-    steam: {
-      appId: "367520",
-      saves: ["<winLocalLow>/Team Cherry/Hollow Knight"],
-    },
+Later folders win on a duplicate `id`, so your own file overrides a bundled one, and a
+new game needs no rebuild — drop in `<id>.json`:
+
+```json
+{
+  "id": "hollow-knight",
+  "name": "Hollow Knight",
+  "platforms": {
+    "steam": {
+      "appId": "367520",
+      "saves": ["<winLocalLow>/Team Cherry/Hollow Knight"]
+    }
   },
-  exclude: ["**/*.log"],
-});
+  "exclude": ["**/*.log"]
+}
 ```
 
-Then add it to the `recipes` array in `packages/recipes/src/index.ts`. Placeholders:
+In the app, **Find saves** on an unmatched game probes the disk and writes exactly this
+file for you (*Save recipe*); the CLI's `find-saves` prints it. A file missing `id`,
+`name`, `platforms`, or a platform's `saves` array is skipped with a warning.
+
+Placeholders:
 `<winDocuments>` `<winAppData>` `<winLocalAppData>` `<winLocalLow>` `<winSavedGames>`
 `<winPublic>` `<home>` `<installDir>` `<steamUserId>`. The first path that exists wins.
 

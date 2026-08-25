@@ -26,12 +26,13 @@ contextBridge.exposeInMainWorld("gsc", {
   openPath: (p: string) => ipcRenderer.invoke("shell:openPath", p),
   openWeb: () => ipcRenderer.invoke("shell:openWeb"),
 
-  updateState: () => ipcRenderer.invoke("update:state"),
-  checkUpdate: () => ipcRenderer.invoke("update:check"),
-  installUpdate: () => ipcRenderer.invoke("update:install"),
+  recipesDir: () => ipcRenderer.invoke("recipes:dir"),
+  openRecipes: () => ipcRenderer.invoke("recipes:open"),
+  reloadRecipes: () => ipcRenderer.invoke("recipes:reload"),
+  saveRecipe: (id: string, json: string) => ipcRenderer.invoke("recipes:save", id, json),
+
   appVersion: () => ipcRenderer.invoke("app:version"),
   portableDir: () => ipcRenderer.invoke("app:portable"),
-  onUpdateState: (cb: (s: any) => void) => ipcRenderer.on("update:state", (_e, s) => cb(s)),
 
   onProgress: (cb: (p: any) => void) => ipcRenderer.on("sync:progress", (_e, p) => cb(p)),
   onDone: (cb: (r: any) => void) => ipcRenderer.on("sync:done", (_e, r) => cb(r)),

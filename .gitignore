@@ -10,3 +10,6 @@ apps/desktop/dist
 apps/desktop/release
 node_modules
 tsconfig.tsbuildinfo
+
+# macOS
+.DS_Store

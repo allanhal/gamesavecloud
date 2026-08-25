@@ -4,11 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import {
-  loadConfig, saveConfig, defaultConfig, configPath, loadState, stateKey,
+  loadConfig, saveConfig, defaultConfig, configPath, configDir, addRecipeDir, loadState, stateKey,
   Api, syncGame, detectGames, toGameConfig, scanDir, manifestHashSync,
   launchGame, waitForExit, isGameRunning, findSaveCandidates, renderRecipe,
   type Config, type GameConfig,
 } from "@gsc/core";
+
+// same user recipe folder the desktop app uses: <configDir>/recipes/*.json
+addRecipeDir(path.join(configDir(), "recipes"));
 
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
@@ -331,7 +334,7 @@ async function cmdFindSaves(args: string[]) {
   });
 
   const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  console.log(`\n${c.b("Recipe")} ${c.dim(`— save as packages/recipes/src/games/${id}.ts`)}\n`);
+  console.log(`\n${c.b("Recipe")} ${c.dim(`— save as ${path.join(configDir(), "recipes", `${id}.json`)}`)}\n`);
   console.log(renderRecipe({
     id, name: match?.name ?? name,
     steamAppId: match?.source === "steam" ? match.appId : undefined,
@@ -339,7 +342,7 @@ async function cmdFindSaves(args: string[]) {
     templates: cands.slice(0, 3).map((cd) => cd.template),
   }));
   if (match) console.log(c.dim(`detected via ${match.source}${match.appId ? ` · id ${match.appId}` : ""}`));
-  console.log(c.dim(`then add it to the recipes array in packages/recipes/src/index.ts`));
+  console.log(c.dim("recipes are plain .json — dropping the file in that folder is all it takes"));
 }
 
 function help() {

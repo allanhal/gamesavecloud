@@ -1,24 +1,23 @@
 import type { Recipe, Platform } from "./types";
-import snowrunner from "./games/snowrunner";
-import detroit from "./games/detroit-become-human";
+import { allRecipes } from "./load";
 
 export * from "./types";
 export * from "./resolve";
 export * from "./heuristics";
+export * from "./load";
 
-/** Add one line here per new recipe. */
-export const recipes: Recipe[] = [snowrunner, detroit];
+/** Every recipe currently on disk. Add a game by dropping a .json in a recipe folder. */
+export const recipes = (): Recipe[] => allRecipes();
 
-const byId = new Map(recipes.map((r) => [r.id, r]));
-export const getRecipe = (id: string) => byId.get(id) ?? null;
+export const getRecipe = (id: string) => allRecipes().find((r) => r.id === id) ?? null;
 
 export function findByAppId(platform: Platform, appId: string): Recipe | null {
-  return recipes.find((r) => r.platforms[platform]?.appId === appId) ?? null;
+  return allRecipes().find((r) => r.platforms[platform]?.appId === appId) ?? null;
 }
 
 /** Loose name match, for when we only have a display name from a launcher. */
 export function findByName(name: string): Recipe | null {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const n = norm(name);
-  return recipes.find((r) => norm(r.name) === n || r.id === n) ?? null;
+  return allRecipes().find((r) => norm(r.name) === n || r.id === n) ?? null;
 }

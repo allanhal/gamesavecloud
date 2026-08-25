@@ -11,24 +11,23 @@ const ARCH_LABEL: Record<string, string> = {
   arm64: "Windows on ARM (Snapdragon, Surface Pro X)",
 };
 
+/** gamesavecloud ships portable only — there is no installer and no auto-update. */
 const KIND: Record<string, { title: string; blurb: string }> = {
-  installer: {
-    title: "Installer",
-    blurb: "Installs to your user folder, adds a Start menu shortcut, and updates itself.",
-  },
   zip: {
     title: "Portable (zip)",
-    blurb: "Extract and run — no install. Settings and sync state live in a gamesavecloud-data folder next to the exe, so the whole folder travels with you. Does not auto-update.",
+    blurb: "Extract and run — no install. Settings, sync state and your recipes live in a gamesavecloud-data folder next to the exe, so the whole folder travels with you.",
   },
   portable: {
     title: "Portable (single exe)",
-    blurb: "One self-extracting executable. Same portable data folder, no install. Does not auto-update.",
+    blurb: "One self-extracting executable. Same portable data folder, no install.",
   },
 };
 
 export default async function DownloadPage() {
-  const rows = await db.select().from(schema.releases)
+  const all = await db.select().from(schema.releases)
     .orderBy(desc(schema.releases.createdAt), desc(schema.releases.arch));
+  // installers from before the app went portable-only are no longer offered
+  const rows = all.filter((r) => r.kind === "zip" || r.kind === "portable");
 
   const byVersion = new Map<string, typeof rows>();
   for (const r of rows) {
@@ -37,11 +36,6 @@ export default async function DownloadPage() {
   }
   const versions = [...byVersion.entries()];
   const [latestVersion, latestBuilds] = versions[0] ?? [null, []];
-
-  // NSIS built anywhere but Windows can ship a broken uninstaller
-  const crossBuiltInstaller = latestBuilds.some(
-    (b) => (b.kind ?? "installer") === "installer" && b.builtOn !== "win32",
-  );
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
@@ -72,24 +66,9 @@ export default async function DownloadPage() {
             <p className="mt-1 text-sm text-[var(--color-muted)]">{latestBuilds[0].notes}</p>
           )}
 
-          {crossBuiltInstaller && (
-            <Panel className="mt-4 border-[var(--color-danger)]/40 p-4">
-              <p className="text-sm font-medium text-[var(--color-danger)]">
-                Use the portable build for now
-              </p>
-              <p className="mt-1 text-sm text-[var(--color-muted)]">
-                This installer was cross-built from macOS, and its uninstaller fails an
-                integrity check on Windows. NSIS generates the uninstaller by running the
-                compiled installer, which does not survive being built through wine. The
-                portable zip below has no installer and is unaffected. A Windows-built
-                installer is coming from CI.
-              </p>
-            </Panel>
-          )}
-
           <div className="mt-4 space-y-5">
-            {(["installer", "zip", "portable"] as const).map((kind) => {
-              const builds = latestBuilds.filter((b) => (b.kind ?? "installer") === kind);
+            {(["zip", "portable"] as const).map((kind) => {
+              const builds = latestBuilds.filter((b) => b.kind === kind);
               if (!builds.length) return null;
               const meta = KIND[kind];
               return (
@@ -103,17 +82,10 @@ export default async function DownloadPage() {
                           <div className="text-sm font-medium">{ARCH_LABEL[r.arch] ?? r.arch}</div>
                           <div className="mt-0.5 truncate font-mono text-xs text-[var(--color-muted)]">
                             {r.filename} · {bytes(Number(r.size))}
-                            {kind === "installer" && r.builtOn !== "win32" && " · cross-built"}
                           </div>
                         </div>
                         <a href={`/dl/${r.id}`}>
-                          <Button
-                            variant={
-                              kind === "installer"
-                                ? (r.builtOn === "win32" ? "default" : "ghost")
-                                : (crossBuiltInstaller && kind === "zip" ? "default" : "ghost")
-                            }
-                          >
+                          <Button variant={kind === "zip" ? "default" : "ghost"}>
                             Download
                           </Button>
                         </a>
@@ -178,17 +150,25 @@ export default async function DownloadPage() {
 
       <section className="mt-10">
         <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--color-muted)]">
-          After installing
+          Getting started
         </h2>
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-[var(--color-muted)]">
           <li>
-            Portable zip: extract anywhere, then run <code className="font-mono">gamesavecloud.exe</code>.
+            Extract the zip anywhere, then run <code className="font-mono">gamesavecloud.exe</code>.
             Keep the <code className="font-mono">gamesavecloud-data</code> folder beside it when you move or update.
           </li>
           <li>Open gamesavecloud and paste your <code className="font-mono">GAMESYNC_TOKEN</code>.</li>
           <li>Click <strong>Scan for games</strong> to find your Steam and Epic library.</li>
           <li>Add the games you want synced, then <strong>Sync all</strong>.</li>
           <li>Use <strong>Play</strong> to launch — it syncs down first and back up on exit.</li>
+          <li>
+            To update, download a newer zip and replace the files, keeping
+            <code className="font-mono"> gamesavecloud-data</code>. Nothing updates itself.
+          </li>
+          <li>
+            Missing a game? Drop a <code className="font-mono">.json</code> recipe into
+            <code className="font-mono"> gamesavecloud-data/recipes</code> — the app picks it up on the next scan.
+          </li>
         </ol>
       </section>
     </main>

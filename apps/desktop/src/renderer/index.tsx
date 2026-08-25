@@ -69,6 +69,7 @@ function FindSaves({ game, onClose, onAdded }: { game: any; onClose: () => void;
   const [res, setRes] = useState<any>(null);
   const [busy, setBusy] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
     gsc().probe(game.name, game.installDir, game.appId, game.source)
@@ -127,11 +128,20 @@ function FindSaves({ game, onClose, onAdded }: { game: any; onClose: () => void;
       {!busy && res?.recipe && (
         <div style={{ marginTop: 12 }}>
           <div className="row" style={{ justifyContent: "space-between" }}>
-            <span className="muted" style={{ fontSize: 12 }}>Recipe for this game — send it to have it built in</span>
-            <button onClick={() => { gsc().copy(res.recipe); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-              {copied ? "Copied" : "Copy recipe"}
-            </button>
+            <span className="muted" style={{ fontSize: 12 }}>
+              Recipe for this game — save it as a .json in your recipes folder, or send it to have it built in
+            </span>
+            <div className="row" style={{ gap: 6 }}>
+              <button onClick={() => { gsc().copy(res.recipe); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                {copied ? "Copied" : "Copy recipe"}
+              </button>
+              <button onClick={async () => {
+                try { setSaved(await gsc().saveRecipe(game.name, res.recipe)); }
+                catch (e: any) { alert(e.message); }
+              }}>Save recipe</button>
+            </div>
           </div>
+          {saved && <div className="muted mono" style={{ fontSize: 11, marginTop: 4 }}>saved to {saved}</div>}
           <pre className="mono muted" style={{
             marginTop: 6, padding: 10, background: "rgba(0,0,0,.25)",
             border: "1px solid var(--line)", borderRadius: 8, overflowX: "auto", fontSize: 11,
@@ -283,47 +293,28 @@ function History({ game, onClose }: { game: any; onClose: () => void }) {
 
 /* ── main ───────────────────────────────────────────────────────────── */
 
-function UpdateBanner() {
-  const [st, setSt] = useState<any>({ phase: "idle" });
+function StatusLine() {
   const [ver, setVer] = useState("");
   const [portable, setPortable] = useState<string | null>(null);
+  const [recipes, setRecipes] = useState<string>("");
 
   useEffect(() => {
     gsc().appVersion().then(setVer);
     gsc().portableDir().then(setPortable);
-    gsc().updateState().then(setSt);
-    gsc().onUpdateState(setSt);
+    gsc().recipesDir().then(setRecipes);
   }, []);
 
-  if (portable) {
-    return <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-      v{ver} · <span className="pill" style={{ color: "var(--warn)", borderColor: "rgba(232,176,75,.4)" }}>portable</span>{" "}
-      settings stored in <span className="mono">{portable}</span> — update by downloading a new zip
-    </div>;
-  }
-
-  if (st.phase === "downloading") {
-    return <div className="panel" style={{ padding: "8px 12px", marginBottom: 12, borderColor: "rgba(61,220,151,.4)" }}>
-      Downloading update… {st.percent}%
-    </div>;
-  }
-  if (st.phase === "ready") {
-    return <div className="panel row" style={{ padding: "8px 12px", marginBottom: 12, borderColor: "rgba(61,220,151,.4)", justifyContent: "space-between" }}>
-      <span>Update v{st.version} is ready to install.</span>
-      <button className="primary" onClick={() => gsc().installUpdate()}>Restart and update</button>
-    </div>;
-  }
-  if (st.phase === "error") {
-    return <div className="panel" style={{ padding: "8px 12px", marginBottom: 12, borderColor: "rgba(229,72,77,.4)" }}>
-      <span className="muted">Update check failed: {st.message}</span>
-    </div>;
-  }
   return <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-    v{ver}
-    {" · "}
-    <a href="#" style={{ color: "var(--accent)" }} onClick={(e) => { e.preventDefault(); gsc().checkUpdate().then(setSt); }}>
-      {st.phase === "checking" ? "checking…" : st.phase === "none" ? "up to date — check again" : "check for updates"}
-    </a>
+    v{ver} · <span className="pill" style={{ color: "var(--warn)", borderColor: "rgba(232,176,75,.4)" }}>portable</span>{" "}
+    {portable
+      ? <>settings stored in <span className="mono">{portable}</span> — update by downloading a new zip</>
+      : <>running from source — settings stored in the usual config folder</>}
+    {recipes && <>
+      {" · "}
+      <a href="#" style={{ color: "var(--accent)" }} onClick={(e) => { e.preventDefault(); gsc().openRecipes(); }}>
+        recipes folder
+      </a>
+    </>}
   </div>;
 }
 
@@ -384,7 +375,7 @@ function App() {
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
         This PC: <strong>{cfg.device}</strong> · <span className="mono">{cfg.server}</span>
       </p>
-      <UpdateBanner />
+      <StatusLine />
 
       {games.length === 0 && (
         <div className="panel" style={{ padding: 32, textAlign: "center", marginTop: 20 }}>

@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+**Portable only.** The NSIS installer and the auto-updater are gone. Every build keeps
+its data in `gamesavecloud-data` beside the exe, and updating is downloading a newer zip
+and replacing the files.
+
+**Recipes are plain .json.** Adding a game is dropping a file into
+`gamesavecloud-data/recipes` — no rebuild, no code change.
+
+### Added
+- Recipes load from the bundled `games` folder, the user's recipes folder and
+  `$GSC_RECIPES_DIR`; later folders override earlier ones by `id`
+- "Save recipe" in **Find saves** writes the probed recipe straight into that folder,
+  plus a link to open it
+- Invalid recipe files are skipped with a warning instead of breaking startup
+
+### Changed
+- `pnpm desktop:dist` builds the portable zip (x64 + arm64) and single exe (x64)
+- `renderRecipe` emits JSON; the CLI points at the user's recipes folder
+- `/download` lists portable builds only; older installer rows are hidden
+
+### Removed
+- `electron-updater`, the update UI, and the `/updates/win` feed route
+
 ## 0.3.0 — 2026-08-19
 
 **Installers are now built on Windows in CI.** The 0.1.0 and 0.2.0 installers were

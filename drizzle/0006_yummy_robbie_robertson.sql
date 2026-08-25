@@ -1,0 +1,1 @@
+ALTER TABLE "releases" ALTER COLUMN "kind" SET DEFAULT 'zip';

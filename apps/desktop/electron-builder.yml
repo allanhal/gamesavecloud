@@ -1,0 +1,23 @@
+# Portable-only: no installer, no auto-update, data kept beside the exe.
+appId: dev.gamesavecloud.desktop
+productName: gamesavecloud
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - "!dist/**/*.map"
+# ship beside the exe: the portable marker and the bundled recipe files
+extraFiles:
+  - portable.txt
+win:
+  target:
+    - target: zip
+      arch: [x64, arm64]
+    - target: portable
+      arch: [x64]
+  artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
+portable:
+  artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
+compression: normal
+publish: null

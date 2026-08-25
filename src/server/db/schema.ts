@@ -90,9 +90,9 @@ export const releases = pgTable("releases", {
   version: text("version").notNull(),
   platform: text("platform").notNull().default("win"),
   arch: text("arch").notNull(),
-  /** installer | portable | zip — only installers feed auto-update */
-  kind: text("kind").notNull().default("installer"),
-  /** host OS the artifact was built on; NSIS cross-built from macOS is unreliable */
+  /** zip = extract-and-run, portable = self-extracting exe (older rows may say installer) */
+  kind: text("kind").notNull().default("zip"),
+  /** host OS the artifact was built on */
   builtOn: text("built_on").notNull().default("unknown"),
   filename: text("filename").notNull(),
   /** R2 object key */

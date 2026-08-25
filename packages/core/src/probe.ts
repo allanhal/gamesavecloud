@@ -152,29 +152,19 @@ export function findSaveCandidates(
     .sort((a, b) => b.score - a.score || b.newestMs - a.newestMs);
 }
 
-/** Emits a ready-to-paste recipe file. */
+/** Emits a ready-to-save recipe file — drop it in a recipes folder as <id>.json. */
 export function renderRecipe(opts: {
   id: string; name: string; steamAppId?: string; epicAppName?: string; templates: string[];
 }): string {
-  const platforms: string[] = [];
-  const saves = opts.templates.map((t) => `        ${JSON.stringify(t)},`).join("\n");
-  if (opts.steamAppId) {
-    platforms.push(`    steam: {\n      appId: ${JSON.stringify(opts.steamAppId)},\n      saves: [\n${saves}\n      ],\n    },`);
-  }
-  if (opts.epicAppName) {
-    platforms.push(`    epic: {\n      appName: ${JSON.stringify(opts.epicAppName)},\n      saves: [\n${saves}\n      ],\n    },`);
-  }
-  if (!platforms.length) platforms.push(`    manual: {\n      saves: [\n${saves}\n      ],\n    },`);
+  const platforms: Record<string, { appId?: string; appName?: string; saves: string[] }> = {};
+  if (opts.steamAppId) platforms.steam = { appId: opts.steamAppId, saves: opts.templates };
+  if (opts.epicAppName) platforms.epic = { appName: opts.epicAppName, saves: opts.templates };
+  if (!Object.keys(platforms).length) platforms.manual = { saves: opts.templates };
 
-  return `import { defineRecipe } from "../types";
-
-export default defineRecipe({
-  id: ${JSON.stringify(opts.id)},
-  name: ${JSON.stringify(opts.name)},
-  platforms: {
-${platforms.join("\n")}
-  },
-  exclude: ["**/*.log"],
-});
-`;
+  return JSON.stringify({
+    id: opts.id,
+    name: opts.name,
+    platforms,
+    exclude: ["**/*.log"],
+  }, null, 2) + "\n";
 }

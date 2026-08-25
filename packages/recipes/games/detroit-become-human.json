@@ -1,0 +1,33 @@
+{
+  "id": "detroit-become-human",
+  "name": "Detroit: Become Human",
+  "platforms": {
+    "steam": {
+      "appId": "1222140",
+      "saves": [
+        "<winSavedGames>/Detroit Become Human",
+        "<winDocuments>/Quantic Dream/Detroit Become Human",
+        "<winDocuments>/My Games/Detroit Become Human",
+        "<winLocalAppData>/Detroit Become Human/Saved/SaveGames",
+        "<winLocalAppData>/Detroit Become Human",
+        "<winLocalAppData>/QuanticDream/Detroit Become Human",
+        "<winAppData>/Quantic Dream/Detroit Become Human",
+        "<winLocalLow>/Quantic Dream/Detroit Become Human"
+      ]
+    },
+    "epic": {
+      "saves": [
+        "<winSavedGames>/Detroit Become Human",
+        "<winDocuments>/Quantic Dream/Detroit Become Human",
+        "<winDocuments>/My Games/Detroit Become Human",
+        "<winLocalAppData>/Detroit Become Human/Saved/SaveGames",
+        "<winLocalAppData>/Detroit Become Human",
+        "<winLocalAppData>/QuanticDream/Detroit Become Human",
+        "<winAppData>/Quantic Dream/Detroit Become Human",
+        "<winLocalLow>/Quantic Dream/Detroit Become Human"
+      ]
+    }
+  },
+  "exclude": ["**/*.log", "**/logs/**", "**/Crashes/**", "**/*.dmp"],
+  "notes": "Checkpoint-based, saves run large. Epic AppName is filled in at runtime by `gamesync detect`."
+}

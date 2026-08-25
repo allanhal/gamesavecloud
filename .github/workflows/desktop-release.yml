@@ -1,8 +1,7 @@
 name: Desktop release
 
-# NSIS must be built on Windows. Cross-building from macOS through wine produces
-# an uninstaller that fails its own integrity check, because NSIS generates the
-# uninstaller by executing the compiled installer.
+# The app ships portable only (zip + single exe), so nothing here builds an
+# installer. Windows runners still do the build so the exe is a native one.
 on:
   workflow_dispatch:
     inputs:
@@ -41,21 +40,18 @@ jobs:
           $j.version = "${{ inputs.version }}"
           $j | ConvertTo-Json -Depth 32 | Set-Content $p
 
-      - name: Build installers (NSIS)
+      - name: Build portable (zip + single exe)
         run: pnpm -F @gsc/desktop dist
         env:
           # electron-builder publishes only when we ask it to
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
-      - name: Build portable (zip + single exe)
-        run: pnpm -F @gsc/desktop dist:portable
-
-      - name: Verify the uninstaller was produced
+      - name: Verify the artifacts were produced
         shell: pwsh
         run: |
-          $exe = Get-ChildItem apps/desktop/release/*-setup.exe | Select-Object -First 1
-          if (-not $exe) { throw "no installer produced" }
-          Write-Host "built $($exe.Name) — $([math]::Round($exe.Length/1MB)) MB"
+          $files = Get-ChildItem apps/desktop/release/*-portable.*
+          if (-not $files) { throw "no portable artifacts produced" }
+          foreach ($f in $files) { Write-Host "built $($f.Name) — $([math]::Round($f.Length/1MB)) MB" }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -63,7 +59,6 @@ jobs:
           path: |
             apps/desktop/release/*.exe
             apps/desktop/release/*.zip
-            apps/desktop/release/*.blockmap
           retention-days: 14
 
       - name: Publish to R2
