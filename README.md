@@ -127,8 +127,15 @@ Two routes are wired:
 - **Azure Trusted Signing** — ~$10/month, validates individuals as well as companies.
   Set the `AZURE_*` variables above and `dist.mjs` signs during the build.
 
-A bought OV/EV certificate also works through electron-builder's `signtoolOptions`.
-Every CI build prints the Authenticode status and warns when unsigned.
+A bought OV/EV certificate also works through electron-builder's `signtoolOptions`, and
+`CSC_LINK` / `CSC_KEY_PASSWORD` are picked up by electron-builder directly. Every CI
+build prints the Authenticode status and warns when unsigned.
+
+For your own machines while a certificate is pending, `scripts/self-sign.ps1` creates a
+self-signed certificate, trusts it locally and signs the exe. That answers SmartScreen on
+that machine. It does **not** answer Smart App Control, which checks signatures against
+Microsoft's trust graph rather than your certificate stores — with SAC on, an unsigned or
+self-signed build cannot run at all, and SAC cannot be re-enabled once turned off.
 
 ## License
 
