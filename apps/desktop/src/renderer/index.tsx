@@ -133,7 +133,11 @@ function FindSaves({ game, onClose, onAdded }: { game: any; onClose: () => void;
                   score {cd.score}
                 </span>
                 <span className="muted" style={{ fontSize: 12 }}>
-                  {cd.files} files · {bytes(cd.bytes)} · newest {Math.round((Date.now() - cd.newestMs) / 86400000)}d ago
+                  {cd.files} files · {bytes(cd.bytes)} · newest {ago(cd.newestMs)}
+                  {" · "}
+                  <span title={new Date(cd.newestMs).toISOString()}>
+                    {new Date(cd.newestMs).toLocaleString()}
+                  </span>
                 </span>
               </div>
               <div className="mono" style={{ marginTop: 4, overflowWrap: "anywhere" }}>{cd.path}</div>

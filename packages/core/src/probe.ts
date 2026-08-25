@@ -30,6 +30,20 @@ function nameMatches(dirName: string, game: string): number {
   return words.length ? Math.round((hits / words.length) * 55) : 0;
 }
 
+/**
+ * "12 minutes ago" rather than "0d ago" — everything written today collapsed
+ * into the same string, which is exactly the range that matters when you are
+ * looking for the folder a game just wrote to.
+ */
+export function age(ms: number): string {
+  const mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const h = Math.round(mins / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
 function summarize(dir: string, depth = 0): { files: number; bytes: number; newestMs: number; saveish: number } {
   let files = 0, bytes = 0, newestMs = 0, saveish = 0;
   let entries: fs.Dirent[];
@@ -127,8 +141,8 @@ export function findSaveCandidates(
         let score = t.score;
         if (st.saveish > 0) { score += 25; why.push(`${st.saveish} save-like files`); }
         const ageDays = (Date.now() - st.newestMs) / 86400000;
-        if (ageDays < 30) { score += 20; why.push(`written ${Math.round(ageDays)}d ago`); }
-        else if (ageDays < 365) { score += 8; why.push(`written ${Math.round(ageDays)}d ago`); }
+        if (ageDays < 30) { score += 20; why.push(`written ${age(st.newestMs)}`); }
+        else if (ageDays < 365) { score += 8; why.push(`written ${age(st.newestMs)}`); }
         // save folders are small; a multi-hundred-MB tree is the game itself
         if (st.bytes > 200 * 1024 * 1024) { score -= 40; why.push("very large — probably game data, not saves"); }
         else if (st.bytes > 1024) { score += 5; }

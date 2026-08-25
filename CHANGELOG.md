@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Save-folder candidates show minutes and hours, not just whole days: everything written
+  today read as "0d ago", which is the exact range that matters when hunting for the
+  folder a game just wrote. The absolute timestamp is shown beside it
+
 ## 0.4.9 — 2026-08-25
 
 ### Added

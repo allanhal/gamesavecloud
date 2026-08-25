@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import {
-  loadConfig, saveConfig, defaultConfig, configPath, configDir, addRecipeDir, loadState, stateKey,
+  loadConfig, saveConfig, defaultConfig, configPath, configDir, addRecipeDir, loadState, stateKey, age,
   Api, syncGame, detectGames, toGameConfig, scanDir, manifestHashSync,
   launchGame, waitForExit, isGameRunning, findSaveCandidates, renderRecipe,
   type Config, type GameConfig,
@@ -333,9 +333,9 @@ async function cmdFindSaves(args: string[]) {
   }
 
   cands.forEach((cd, i) => {
-    const age = Math.round((Date.now() - cd.newestMs) / 86400000);
+
     console.log(`\n${c.b(`${i + 1}.`)} ${c.g(cd.path)}`);
-    console.log(`   ${c.dim(`score ${cd.score} · ${cd.files} files · ${bytes(cd.bytes)} · newest ${age}d ago`)}`);
+    console.log(`   ${c.dim(`score ${cd.score} · ${cd.files} files · ${bytes(cd.bytes)} · newest ${age(cd.newestMs)} (${new Date(cd.newestMs).toLocaleString()})`)}`);
     console.log(`   ${c.dim(cd.why.join(", "))}`);
     console.log(`   ${c.c(cd.template)}`);
   });
