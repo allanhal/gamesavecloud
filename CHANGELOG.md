@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 — 2026-08-25
 
 ### Fixed
 - The app kept its own folder locked on Windows after you closed the window: closing
