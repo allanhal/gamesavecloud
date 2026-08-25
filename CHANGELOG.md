@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.4 — 2026-08-25
 
 ### Added
 - Dashboard lists games that exist in the cloud but are not set up on this PC, with the
