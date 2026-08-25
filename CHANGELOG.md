@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.5 — 2026-08-25
 
 ### Added
 - A cloud game whose save folder does not exist yet can be restored anyway: the recipe
