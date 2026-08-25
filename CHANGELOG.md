@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.7 — 2026-08-25
 
 ### Changed
 - Closing the window now quits the app. It used to hide to the tray and keep syncing,
