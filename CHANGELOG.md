@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Code signing via Azure Trusted Signing, switched on by the presence of credentials, so
+  an unsigned local build still works. CI prints the Authenticode status of every build
+  and warns when it is unsigned
+- /download explains Smart App Control properly: it blocks unsigned apps outright, unlike
+  SmartScreen there is no "run anyway", and switching it off is permanent
+
 ## 0.4.5 — 2026-08-25
 
 ### Added

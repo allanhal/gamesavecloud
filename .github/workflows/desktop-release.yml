@@ -70,6 +70,23 @@ jobs:
         env:
           # electron-builder publishes only when we ask it to
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # signing turns itself on once these exist; unset means an unsigned build
+          AZURE_SIGN_ENDPOINT: ${{ secrets.AZURE_SIGN_ENDPOINT }}
+          AZURE_SIGN_ACCOUNT: ${{ secrets.AZURE_SIGN_ACCOUNT }}
+          AZURE_SIGN_PROFILE: ${{ secrets.AZURE_SIGN_PROFILE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Report signing status
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem apps/desktop/release/*-portable.exe | Select-Object -First 1
+          $sig = if ($exe) { (Get-AuthenticodeSignature $exe.FullName).Status } else { "no exe" }
+          Write-Host "signature status: $sig"
+          if ($sig -ne "Valid") {
+            Write-Host "::warning::Unsigned build — Windows Smart App Control will block it outright."
+          }
 
       - name: Verify the artifacts were produced
         shell: pwsh

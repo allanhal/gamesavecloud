@@ -106,7 +106,8 @@ Self-hosted Steam Cloud for any game. Single user (my PCs). Neon = metadata, R2 
 - [x] Portable Windows builds (zip x64 + arm64, single exe x64), published to R2
 - [x] Public /download page with version, size, SHA-256
 - [x] Recipes as drop-in .json files, loaded from the user's data folder
-- [ ] Signed builds (SmartScreen) — needs a code-signing cert
+- [ ] Signed builds — CI wiring is done (Azure Trusted Signing), needs a certificate.
+      Unsigned builds are blocked outright by Smart App Control, not just warned about
 
 ---
 

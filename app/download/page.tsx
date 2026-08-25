@@ -116,11 +116,33 @@ export default async function DownloadPage() {
           </details>
 
           <Panel className="mt-6 border-[var(--color-warn)]/30 p-4">
-            <p className="text-sm font-medium text-[var(--color-warn)]">Windows SmartScreen warning</p>
+            <p className="text-sm font-medium text-[var(--color-warn)]">
+              Windows blocks unsigned apps
+            </p>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              These builds are unsigned, so Windows shows “Windows protected your PC”.
-              Click <strong>More info → Run anyway</strong>. Signing needs a code-signing
-              certificate, which is on the roadmap.
+              These builds are not code-signed yet, so Windows warns about them in two
+              different ways:
+            </p>
+            <ul className="mt-2 space-y-2 text-sm text-[var(--color-muted)]">
+              <li>
+                <strong className="text-[var(--color-fg)]">SmartScreen</strong> — “Windows
+                protected your PC”. Click <strong>More info → Run anyway</strong>. The app
+                runs normally after that.
+              </li>
+              <li>
+                <strong className="text-[var(--color-fg)]">Smart App Control</strong> — “blocked
+                an app that might be unsafe”. This one has no <em>Run anyway</em>: it only
+                permits signed or well-known apps. It is on by default on some clean Windows 11
+                installs. You can check under{" "}
+                <span className="font-mono">Windows Security → App &amp; browser control →
+                Smart App Control</span>. Turning it off is permanent — it cannot be switched
+                back on without reinstalling Windows — so if you would rather not, wait for a
+                signed build.
+              </li>
+            </ul>
+            <p className="mt-2 text-sm text-[var(--color-muted)]">
+              Signing is wired up and waits only on a certificate; every published build is
+              checked and this notice will go once they are signed.
             </p>
           </Panel>
         </section>

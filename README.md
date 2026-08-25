@@ -104,8 +104,24 @@ Bump `version` in `apps/desktop/package.json` before `pnpm release`, or pass one
 Artifacts are served from R2 via short-lived presigned URLs; `/download` is public
 on purpose, since you need the app on a fresh PC before you have a token.
 
-**Builds are unsigned**, so Windows SmartScreen shows a warning — *More info → Run
-anyway*. Signing needs a code-signing certificate.
+**Builds are unsigned.** SmartScreen shows a warning you can click past, but **Smart App
+Control blocks them outright** — it permits only signed or well-known apps and has no
+"run anyway", and turning it off requires reinstalling Windows. So an unsigned build is
+unusable on a machine that has it on.
+
+Signing is wired and waits only on a certificate. `apps/desktop/dist.mjs` turns it on
+when these are set (CI reads them from repo secrets):
+
+```
+AZURE_SIGN_ENDPOINT   e.g. https://weu.codesigning.azure.net
+AZURE_SIGN_ACCOUNT    Trusted Signing account name
+AZURE_SIGN_PROFILE    certificate profile name
+AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET
+```
+
+Azure Trusted Signing is the cheap route (~$10/month, and it validates individuals, not
+just companies); a bought OV/EV certificate works too via electron-builder's
+`signtoolOptions`. Every CI build prints the Authenticode status and warns when unsigned.
 
 ## Adding a game recipe
 
