@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.11 — 2026-08-25
 
 ### Fixed
 - **Sync all blanked the window.** The progress reducer treated a first, phase-less event
