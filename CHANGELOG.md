@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.6 — 2026-08-25
 
 ### Added
 - Code signing via Azure Trusted Signing, switched on by the presence of credentials, so
