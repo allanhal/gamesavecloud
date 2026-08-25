@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- The app kept its own folder locked on Windows after you closed the window: closing
+  only hides to the tray, so gamesavecloud.exe stayed live and Windows refused to delete
+  the folder. Quitting now really quits — the sync timer, tray icon and window are all
+  torn down, with a hard `app.exit` 4s later if anything still hangs
+- `isGameRunning` shelled out to PowerShell **synchronously** every poll, freezing the
+  main process for the length of each call and leaving a child running if quit landed
+  mid-poll. It is async now, and the child is killed when quitting aborts it
+- Launching a game left the exit-poll loop running forever; it is cancelled on quit and
+  its timer no longer holds the event loop open
+- A second launch started a second process holding the same files; it now focuses the
+  running instance instead (`requestSingleInstanceLock`)
+
+### Added
+- **Quit** button in the header, for when the tray icon is in the overflow area
+- A one-time tray balloon on first close, saying the app is still running
+
 ## 0.4.1 — 2026-08-24
 
 ### Fixed

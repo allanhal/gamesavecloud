@@ -11,6 +11,10 @@ import {
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
+/** the "it went to the tray" balloon is shown once per run, not every close */
+let hintShown = false;
+/** aborted on quit, so the game-exit poll stops instead of outliving the window */
+const quitting = new AbortController();
 
 /**
  * The app only ships portable, so a packaged build always keeps its data in
@@ -47,6 +51,19 @@ if (portableDir) setConfigDir(portableDir);
 const userRecipeDir = path.join(configDir(), "recipes");
 addRecipeDir(userRecipeDir);
 
+/**
+ * A second launch must not start a second process: on Windows every running
+ * instance keeps a handle on the exe and its dlls, which is what makes the
+ * folder refuse to delete. Hand focus to the instance already running instead.
+ */
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0);
+} else {
+  app.on("second-instance", () => {
+    if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
+  });
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1040, height: 720, minWidth: 860, minHeight: 560,
@@ -58,7 +75,17 @@ function createWindow() {
   win.loadFile(path.join(__dirname, "index.html"));
   win.on("close", (e) => {
     // closing hides to tray; quitting is explicit, so background sync survives
-    if (!(app as any).isQuitting) { e.preventDefault(); win?.hide(); }
+    if ((app as any).isQuitting) return;
+    e.preventDefault();
+    win?.hide();
+    // the app still holds its own folder open while it runs, so say where it went
+    if (!hintShown) {
+      hintShown = true;
+      tray?.displayBalloon?.({
+        title: "gamesavecloud is still running",
+        content: "Syncing continues in the background. Right-click the tray icon and choose Quit to close it completely.",
+      });
+    }
   });
 }
 
@@ -72,9 +99,28 @@ function createTray() {
     { label: "Open", click: () => { win?.show(); } },
     { label: "Sync all now", click: () => syncAll() },
     { type: "separator" },
-    { label: "Quit", click: () => { (app as any).isQuitting = true; app.quit(); } },
+    { label: "Quit", click: () => quitApp() },
   ]));
   tray.on("click", () => win?.show());
+}
+
+/**
+ * Full exit. Everything that keeps the process alive has to go, or Windows
+ * still holds the install folder: the sync interval, the tray icon and the
+ * window itself.
+ */
+function quitApp() {
+  (app as any).isQuitting = true;
+  quitting.abort();
+  if (timer) { clearInterval(timer); timer = null; }
+  tray?.destroy();
+  tray = null;
+  win?.destroy();
+  win = null;
+  app.quit();
+  // a wedged child or a pending handle must not turn quitting into a zombie
+  const hard = setTimeout(() => app.exit(0), 4000);
+  if (typeof hard.unref === "function") hard.unref();
 }
 
 /* ── helpers shared by IPC handlers ─────────────────────────────────── */
@@ -142,7 +188,7 @@ async function statusAll() {
       localSize: local.reduce((n, f) => n + f.size, 0),
       localVersion: prev?.syncedVersion ?? 0,
       cloudVersion: remote.version,
-      running: g.installDir ? isGameRunning(g.installDir) : false,
+      running: g.installDir ? await isGameRunning(g.installDir) : false,
     };
   }));
 }
@@ -255,7 +301,8 @@ ipcMain.handle("game:launch", async (_e, id: string) => {
   launchGame(g);
   send("sync:progress", { game: g.id, message: "waiting for the game to exit…" });
 
-  await waitForExit(g.installDir ?? g.path);
+  await waitForExit(g.installDir ?? g.path, { signal: quitting.signal });
+  if (quitting.signal.aborted) return { ok: false, reason: "quitting" };
   await new Promise((r) => setTimeout(r, 3000));
   const post = await syncGame(cfg, g, { onProgress: (m) => send("sync:progress", { game: g.id, message: m }) });
   return { ok: true, post };
@@ -270,6 +317,9 @@ ipcMain.handle("clipboard:write", (_e, text: string) => clipboard.writeText(text
 ipcMain.handle("shell:openConfigDir", () => shell.openPath(configDir()));
 ipcMain.handle("shell:openPath", (_e, p: string) => shell.openPath(p));
 ipcMain.handle("app:portable", () => (isPortable() ? configDir() : null));
+
+/** Quitting from the UI, for when the tray icon is hidden in the overflow area. */
+ipcMain.handle("app:quit", () => quitApp());
 
 ipcMain.handle("recipes:dir", () => userRecipeDir);
 
@@ -309,7 +359,7 @@ function startBackgroundSync() {
     if (!cfg) return;
     for (const g of cfg.games.filter((x) => x.enabled)) {
       // never touch a save while its game is running
-      if (g.installDir && isGameRunning(g.installDir)) continue;
+      if (g.installDir && await isGameRunning(g.installDir)) continue;
       try { await syncGame(cfg, g); } catch { /* offline or conflict — the UI shows it */ }
     }
     win?.webContents.send("sync:background");
@@ -321,6 +371,15 @@ app.whenReady().then(() => {
   createTray();
   startBackgroundSync();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+});
+
+// task manager "End task", Windows shutdown and any other outside quit
+app.on("before-quit", () => {
+  (app as any).isQuitting = true;
+  quitting.abort();
+  if (timer) { clearInterval(timer); timer = null; }
+  tray?.destroy();
+  tray = null;
 });
 
 app.on("window-all-closed", () => { /* stay alive in the tray */ });

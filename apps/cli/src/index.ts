@@ -248,7 +248,7 @@ async function cmdLaunch(args: string[]) {
   const cfg = need();
   const g = findGame(cfg, args[0] ?? "");
 
-  if (isGameRunning(g.path)) { console.error(c.r("That game looks like it is already running.")); process.exit(1); }
+  if (await isGameRunning(g.path)) { console.error(c.r("That game looks like it is already running.")); process.exit(1); }
 
   console.log(c.dim("syncing down before launch…"));
   const pre = await syncGame(cfg, g, { onProgress: (m) => console.log(c.dim(`  ${m}`)) });
@@ -280,7 +280,7 @@ async function cmdWatch(args: string[]) {
   const lastHash = new Map<string, string>();
   for (;;) {
     for (const g of cfg.games.filter((x) => x.enabled && fs.existsSync(x.path))) {
-      if (isGameRunning(g.installDir ?? g.path)) continue;
+      if (await isGameRunning(g.installDir ?? g.path)) continue;
       const files = scanDir(g.path, { include: g.include, exclude: g.exclude });
       const h = files.length ? manifestHashSync(files) : "";
       const newestWrite = Math.max(0, ...files.map((f) => f.mtimeMs));
