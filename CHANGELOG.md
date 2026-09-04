@@ -1,5 +1,11 @@
 # Changelog
 
+n## 0.4.12 — 2026-08-XX
+
+### Added
+- **Recipe**: `hyper-echeleon.json` for multiplayer PC synchronization across R2 cloud storage (multi-platform: Windows, macOS, Linux)
+- **Docs**: README walkthrough for non-LAN multi-PC sync with GitHub Releases distribution
+
 ## 0.4.12 — 2026-08-25
 
 ### Added

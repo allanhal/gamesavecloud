@@ -1,6 +1,6 @@
 {
   "name": "@gsc/desktop",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "private": true,
   "description": "gamesavecloud — cloud saves for PC games",
   "author": "Allan Pinheiro <allan.hal@gmail.com>",
