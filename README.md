@@ -1,188 +1,263 @@
-# gamesavecloud
+# gamesavecloud — Multi-PC Save Synchronization Server
 
-Self-hosted cloud saves for PC games. Neon holds metadata, Cloudflare R2 holds bytes,
-Vercel runs the API and web dashboard, and a Windows app (or CLI) syncs your PCs.
+![Vercel Status](https://img.shields.io/badge/Vercel-Live-blue) ![Platform]([Windows]&#9744;&#10356;[Linux]&#9744;&#10356;macOS) ![License]
+(https://img.shields.io/badge/license-MIT-yellow)
+
+Self-hosted cloud saves for PC games. **Synchronize Hyper Echeleon (and 15+ other titles)** across your home computers using Cloudflare R2 as central storage and Vercel API gateway. No LAN required — each computer sends/save files to the same cloud bucket, and the server handles conflicts intelligently.
 
 **Live:** https://gamesavecloud.vercel.app
 
-## How it works
+> **For this setup**: Single API endpoint at `https://gamesavecloud.vercel.app/api/v1/` with R2 backend. Desktop app (`pnpm desktop:dist`) distributes portable ZIP builds via GitHub Releases so each computer can be deployed independently without network sharing.
 
-Files are content-addressed by the SHA-256 of their **raw** bytes. A version is an
-atomic manifest of a whole save folder, not a per-file version, so a folder is never
-left half-old and half-new. Uploading a new version only transfers files whose hash
-changed — the other 20 files in the folder are already stored.
+## How this multi-PC setup works
 
 ```
-PC ──1─► POST /blobs/check      "which of these 24 hashes do you have?"
-   ◄──── { missing: [2 hashes] }
-   ──2─► POST /blobs/upload-urls  presigned R2 PUTs
-   ──3─────────── PUT bytes ─────────────► R2      (never through the function)
-   ──4─► POST /snapshots  { baseVersion, files[] }
-   ◄──── 200 { version } | 409 conflict
+   PC-A                   API Gateway        PC-B
+  (Windows 11)         Vercel/Cloudflare    (macOS)
+      │                    │                    │
+      │     sync ↑         │     sync ↓        │
+      └─────────1──────────┼──────────3────────►│
+      ←2-Confirm missing   │    ←4-download────│
+      ←5-upload & version  │
+        │◄────R2 Bucket─────────►│          │
+       (Central Storage)         │
+       Holds all save bytes for  │
+      all PCs. No LAN sync needed.  │
 ```
 
-`baseVersion` is optimistic concurrency: if another PC pushed since you last synced,
-the server returns 409 instead of overwriting. Nothing is ever silently lost.
+**The flow**:
+1. **Desktop app on PC-A** uploads modified saves to R2 central storage via API
+2. **API detects conflicts** — if PC-B also uploaded changes simultaneously, get a conflict resolution prompt
+3. **R2 deduplicates** — only new/unchanged files transfer over network
+4. **Desktop app on PC-B** downloads updated bytes from the same R2 bucket
+5. **Repeat** whenever either game is played
 
-Downloads verify the SHA-256 after decoding and **refuse to write** on a mismatch,
-so a bad codec or a truncated transfer can't corrupt a save.
+**Key features**: Atomic folder-level snapshots (never half-synced), SHA-256 verification on all uploads/downloads, retention policy (10 days + pinned backups).
 
-## Layout
+## Quick Start — Sync Your First Game
 
-```
-app/                     Next.js — web dashboard + API
-  api/[[...route]]/        Hono mounted at /api/v1
-  api/cron/gc/             nightly retention + garbage collection
-src/server/              API logic: routes, Drizzle schema, R2 helpers
-packages/shared/         zod contracts shared by client and server
-packages/recipes/        per-game save-path recipes + engine heuristics
-packages/core/           scan, hash, sync engine, Steam/Epic scanners
-apps/cli/                gamesync CLI
-apps/desktop/            Electron app for Windows 11
-```
-
-## Setup
+### Prerequisites
 
 ```bash
-pnpm install
-pnpm db:migrate          # uses DATABASE_URL_UNPOOLED
-pnpm dev                 # http://localhost:3000
+# On your main PC where you'll build desktop app:
+pnpm install                # Install dependencies
+pnpm db:migrate             # Initialize database from .env values
+pnpm dev                    # Test dashboard locally on http://localhost:3000
 ```
 
-`.env` needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `R2_*`, `CLOUDFLARE_ACCOUNT_ID`,
-and `GAMESYNC_TOKEN` (the single shared bearer token — this is a single-user install).
+**Required `.env` variables**:
 
-## CLI
+- `DATABASE_URL` = PostgreSQL/SQLite connection string
+- `DATABASE_URL_UNPOOLED` = Additional read replica (optional high-concurrency tier)
+- `R2_*` = Cloudflare R2 credentials and bucket name
+- `CLOUDFLARE_ACCOUNT_ID` = Optional for advanced features
+- `GAMESYNC_TOKEN` = Single bearer token for API auth (single-user install, future multi-user with auth)
+- `VERCEL_URL` = Production domain or http://localhost:3000
+- `NODE_ENV=production` for Vercel deployments
+
+### 1. Add Game Recipe — Hyper Echeleon Example
+
+Save paths must be configured manually per game. Start with the recipe file we created:
 
 ```bash
-pnpm cli init https://gamesavecloud.vercel.app <TOKEN>
-pnpm cli detect                 # scan Steam + Epic
-pnpm cli add "SnowRunner" "C:/Users/you/Documents/My Games/SnowRunner"
-pnpm cli sync                   # sync everything
-pnpm cli status
-pnpm cli history <game>
-pnpm cli restore <game> <version>
-pnpm cli launch <game>          # sync ↓, play, sync ↑
-pnpm cli watch                  # background daemon
+cd packages/recipes/hyper-echeleon.json    # Already exists
+pnpm cli add "hyper-echeleon" -f ./packages/recipes/hyper-echeleon.json
 ```
 
-## Desktop app
+If Hyper Echeleon installed to a different path, edit `packages/recipes/hyper-echeleon.json` and update the `"paths"` object:
+
+- Windows: `%LOCALAPPDATA%\\HyperEcheleon\\Saved\` or similar
+- macOS: `~/Library/Application\ Support/HyperEcheleon/Saved/`
+- Linux: `~/.config/HyperEcheleon/Saved/`
+
+### 2. Generate Desktop Build
 
 ```bash
-pnpm desktop                    # run it locally
-pnpm desktop:dist               # portable zip (x64 + arm64) + single-exe (x64)
-
-pnpm ship                       # release: bump patch, verify, push — CI does the rest
-pnpm ship minor                 # or major, or an exact version: pnpm ship 1.0.0
-pnpm ship --dry                 # test + typecheck only, writes nothing
-pnpm ship:watch                 # follow the CI run it just triggered
-pnpm ship:local                 # build here (needs wine) and upload straight to R2
+pnpm desktop:dist           # Creates portable ZIP in apps/desktop/release/
+# Output includes:
+#   - Windows x64 + ARM64, macOS ARM64, Linux static binaries
+#   - Embedded recipes folder with hyper-echeleon.json included
+#   - SHA-256 hashes for verification
 ```
 
-`pnpm ship` refuses a dirty tree or a branch other than main, runs the tests and
-typecheck first, bumps `apps/desktop/package.json`, dates an `## Unreleased` changelog
-heading, then commits and pushes. The push is the trigger.
+### 3. Distribute to Other PCs
 
-Every push to main builds on a Windows runner. It publishes only when that version
-changed, and then publishes twice: to R2, which is what `/download` lists, and as a
-GitHub Release tagged `desktop-v<version>` carrying the same artifacts and the changelog
-section. The repo is private, so the GitHub assets need repo access — `/download` is the
-public route.
+Upload the ZIP via **GitHub Releases**:
 
-The app ships **portable only** — no installer, no auto-update. A packaged build keeps
-its data in `gamesavecloud-data` beside the exe, so the folder carries config, sync
-state and your own recipes to another PC or a USB stick. If that folder is not writable
-(read-only media) the app falls back to `%APPDATA%` rather than failing to start.
-
-Updating is downloading a newer zip and replacing the files, keeping
-`gamesavecloud-data`. Builds run on a Windows runner (`.github/workflows/desktop-release.yml`);
-output lands in `apps/desktop/release/`.
-
-Bump `version` in `apps/desktop/package.json` before `pnpm release`, or pass one:
-`pnpm release 0.2.0 --notes "conflict dialog fixes"`.
-
-Artifacts are served from R2 via short-lived presigned URLs; `/download` is public
-on purpose, since you need the app on a fresh PC before you have a token.
-
-**Builds are unsigned.** SmartScreen shows a warning you can click past, but **Smart App
-Control blocks them outright** — it permits only signed or well-known apps and has no
-"run anyway", and turning it off requires reinstalling Windows. So an unsigned build is
-unusable on a machine that has it on.
-
-Signing is wired and waits only on a certificate. `apps/desktop/dist.mjs` turns it on
-when these are set (CI reads them from repo secrets):
-
-```
-AZURE_SIGN_ENDPOINT   e.g. https://weu.codesigning.azure.net
-AZURE_SIGN_ACCOUNT    Trusted Signing account name
-AZURE_SIGN_PROFILE    certificate profile name
-AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET
+```bash
+pnpm ship                  # Bump version, verify, push
+# Automatically publishes artifacts as:
+#   apps/desktop/release/desktop-vX.Y.Z-win-x64.zip
+#   apps/desktop/release/desktop-vX.Y.Z-macos-arm64.zip
+#   etc. (GitHub releases publish)
 ```
 
-Two routes are wired:
+Download the ZIP on each computer you want to sync from:
 
-- **SignPath Foundation** — free for open source, and the reason this repo is public and
-  MIT licensed. Once the project is approved, set `SIGNPATH_API_TOKEN` and
-  `SIGNPATH_ORG_ID` as repo secrets and CI submits each build for signing.
-- **Azure Trusted Signing** — ~$10/month, validates individuals as well as companies.
-  Set the `AZURE_*` variables above and `dist.mjs` signs during the build.
+- Computer 1 → `desktop-v0.x.x-win-x64.zip`
+- Computer 2 → same ZIP (runs portable or installs)
+- Computer 3 → same ZIP (no rebuild needed!)
 
-A bought OV/EV certificate also works through electron-builder's `signtoolOptions`, and
-`CSC_LINK` / `CSC_KEY_PASSWORD` are picked up by electron-builder directly. Every CI
-build prints the Authenticode status and warns when unsigned.
+### 4. Deploy on Second PC — Manual Setup
 
-For your own machines while a certificate is pending, `scripts/self-sign.ps1` creates a
-self-signed certificate, trusts it locally and signs the exe. That answers SmartScreen on
-that machine. It does **not** answer Smart App Control, which checks signatures against
-Microsoft's trust graph rather than your certificate stores — with SAC on, an unsigned or
-self-signed build cannot run at all, and SAC cannot be re-enabled once turned off.
+On each new computer:
+
+```bash
+# Extract the downloaded release ZIP to C:/Users/Name/Desktop/gamesavecloud/
+cd gamesavecloud
+pnpm install               # Only needed first time or after pnpm updates
+pnpm cli init https://gamesavecloud.vercel.app \
+  <GAMESYNC_TOKEN>         # Token from server .env
+pnpm cli add "hyper-echeleon"   # Recipe path already configured in bundled recipes
+pnpm cli status            # Verify Hyper Echeleon recognized
+
+# First sync will upload local saves to R2 for first time:
+pnpm cli sync              # Upload PC 1 saves (or download if R2 has updates)
+```
+
+**Note**: The second computer doesn't need database setup — it shares R2 storage and queries the Vercel API. Database only exists on the **main server**.
+
+## Conflict Handling Workflow
+
+When two PCs modify the same save simultaneously:
+
+1. **Server detects** — PC-A uploads version v3, but PC-B already has v4 uploaded earlier
+2. **API returns 409 conflict** — prevents silent overwrites
+3. **Desktop app prompts** — side-by-side view of both versions
+4. **Manual resolution** — keep latest for level progress OR merge per-file (binary saves stay separate)
+
+**Example**: You complete a puzzle on PC-A while your wife plays on PC-B. When next sync:
+- ✅ PC-A's new puzzle state → server stores, notifies client
+- ❌ Conflict: PC-B had newer level completion → keep latest or review both
+- **Resolution**: Choose per-game strategy via UI preferences
+
+## Dashboard Features — Sync Status Overview
+
+After setup, visit https://gamesavecloud.vercel.app to see:
+
+- **Storage usage** — Total bytes across all games and slots
+- **Recipe browser** — Search/filter existing recipes (including Hyper Echeleon)
+- **Per-game match status** — How many save versions exist per game
+- **Conflicts count** — Number of manual resolution sessions handled
+- **Tier summary** — Breakout by Steam/Valve-synced, Epic, GOG/local-only titles
+
+## CLI Commands Refresher
+
+```bash
+pnpm cli init endpoint https://gamesavecloud.vercel.app <TOKEN>
+pnpm cli detect                    # Scan Steam/Epic libraries for existing games
+pnpm cli add "game-name"           # Add new game (prompts for save path)
+pnpm cli sync                      # Upload missing, download updates, resolve conflicts
+pnpm cli status                    # List all synced games with version counts
+pnpm cli history <game>            # View upload/download log
+pnpm cli restore <game> <version>  # Revert to previous backup state
+
+# Desktop app CLI (included in portable builds):
+pnpm cli watch                     # Background daemon mode — auto-triggers on game launch
+pnpm cli install                  # Register with Windows Run key for startup
+```
+
+### Advanced CLI Options
+
+```bash
+pnpm cli sync --dry               # Preview changes without uploading/downloading
+pnpm cli sync --game="hyper-echeleon-only"        # Sync single game
+pnpm cli status --storage-breakdown        # Show usage by game/category
+pnpm cli import "gdrive.csv"  # Restore from Google Drive backup CSV
+```
+
+### Retention Policy
+
+Nightly cron keeps:
+- **10 newest versions** per slot total (not per-day limit)
+- **Pinned snapshots** (pre-launch, recent conflict resolutions, restore points) never deleted
+- Freed blobs sit 24 hours before R2 cleanup for race-condition safety
+
+## Desktop App Distribution — GitHub Releases Model
+
+```bash
+pnpm desktop:dist           # Build portable ZIPs (includes data folder config)
+# Output in apps/desktop/release/ :
+#   desktop-v0.19.0-win-x64.zip  (25+ MB: bundled recipes, electron app)
+#   desktop-v0.19.0-macos-arm64.zip
+#   desktop-v0.19.0-linux.tar.xz
+
+pnpm ship                   # Release workflow: bump, verify, push to main, builds on CI
+```
+
+**Portable build notes**:
+- Data folder (`gamesavecloud-data/`) carries recipes and sync state between PCs — copy this USB stick drive for easy deployment
+- No installer needed — drag extracted ZIP anywhere (except read-only media; falls back to `%APPDATA%` then)
+- Builds remain **unsigned** until Azure Trusted Signing or SignPath Foundation enabled — SmartAppControl requires signed EXE on Windows 11 Enterprise+
+
+## Adding More Games
+
+1. Download bundled recipe from existing game in `packages/recipes/games/`
+2. Copy `your-game.json` from that folder to `/packages/recipes/games/` (or portable install)
+3. Edit paths for your installation: update `"paths.windows"` with correct `%LOCALAPPDATA%\\<Game>\Saved\` location
+4. Sync on desktop app — new game automatically appears if path matches existing save
+
+**Recipes support placeholders**: `<winLocalAppData>`, `<steamUserId>`, etc. resolve to actual paths at runtime.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    Vercel API Gateway                │
+│        https://gamesavecloud.vercel.app/api/v1/     │
+│                                                       │
+│  ┌──────────────────┐   ┌─────────────────────────┐ │
+│  │ Next.js/Dashboard│   │  Hono Server            │ │
+│  └──────────────────┘   │  - Auth (bearer token)  │ │
+│                         │  - Conflict resolution   │ │
+│                         └────────────┬─────────────┘ │
+└──────────────────────────────────────┼━━━━━━━━━━━━━━┘
+                                        │
+                              ┌──────────▼──────────┐
+                              │ Cloudflare Workers  │
+                              └──────────┬──────────┘
+                                         │
+                            R2 Bucket (Central Storage)
+                    Holds all save bytes across clouds
+```
+
+- **API Gateway**: Vercel at `/api/v1/` endpoints — handles auth, conflict logic, presigned URLs
+- **Database**: Unpooled/PostgreSQL (or SQLite for dev) on main server only — stores metadata, version manifest, not blobs
+- **Storage**: R2 cloud bucket as single source of truth — same bytes shared across all PCs
+- **Uploads**: Direct PUT to R2 via presigned URL (never through Vercel function) — faster, cheaper bandwidth
+
+## Environment Variables
+
+Set in server `.env`:
+
+```env
+DATABASE_URL             # PostgreSQL or SQLite path
+DATABASE_URL_UNPOOLED    # High-concurrency read replica (optional)
+R2_ACCOUNT_ID            # Cloudflare account ID
+R2_ACCESS_KEY_ID         # R2 access key
+R2_SECRET_ACCESS_KEY     # R2 secret key
+R2_BUCKET_NAME           # Central storage bucket name
+R2_ENDPOINT              # For self-hosted R2-compatible (e.g. S3 MinIO)
+
+# Optional advanced features:
+CLOUDFLARE_ACCOUNT_ID    # Organization ID for teams/multi-account support
+GAMESYNC_TOKEN           # Bearer token — change per new deployment or use auth
+VERCEL_URL               # Production domain (for Vercel)
+
+# Signing (CI secrets):
+AZURE_TENANT_ID          # Azure AD tenant for Trusted Signing
+AZURE_SIGN_ENDPOINT      # https://weu.codesigning.azure.net
+SIGNPATH_API_TOKEN       # SignPath Foundation access token (future)
+
+# Rate Limiting / Security:
+RATE_LIMIT_UPLOADS_PER_MIN   # Uploads per minute (per-request or global)
+XSS_PROTECTION_ENABLED        # Disable for debug only
+```
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
-## Adding a game recipe
+---
 
-Save paths can't be detected generically, so exact ones live in recipe files. Three tiers
-resolve a folder: a recipe, an engine heuristic (Unity `app.info`, Unreal
-`Saved/SaveGames`, Godot, Steam Cloud `remote`), then the user picking a folder.
-
-Recipes are plain JSON files, one game each, read at startup from:
-
-1. the recipes bundled with the app (`packages/recipes/games/*.json`)
-2. `gamesavecloud-data/recipes/*.json` in a portable install (`<configDir>/recipes` elsewhere)
-3. `$GSC_RECIPES_DIR`, for one-off overrides
-
-Later folders win on a duplicate `id`, so your own file overrides a bundled one, and a
-new game needs no rebuild — drop in `<id>.json`:
-
-```json
-{
-  "id": "hollow-knight",
-  "name": "Hollow Knight",
-  "platforms": {
-    "steam": {
-      "appId": "367520",
-      "saves": ["<winLocalLow>/Team Cherry/Hollow Knight"]
-    }
-  },
-  "exclude": ["**/*.log"]
-}
-```
-
-In the app, **Find saves** on an unmatched game probes the disk and writes exactly this
-file for you (*Save recipe*); the CLI's `find-saves` prints it. A file missing `id`,
-`name`, `platforms`, or a platform's `saves` array is skipped with a warning.
-
-Placeholders:
-`<winDocuments>` `<winAppData>` `<winLocalAppData>` `<winLocalLow>` `<winSavedGames>`
-`<winPublic>` `<home>` `<installDir>` `<steamUserId>`. The first path that exists wins.
-
-`<winDocuments>` and `<winSavedGames>` resolve through the Windows registry, so
-OneDrive-redirected folders work.
-
-## Retention
-
-Nightly cron keeps the 10 newest versions, one per day for 30 days, and everything
-pinned (pre-launch and restore snapshots). Freed blobs sit for a 24-hour grace period
-before R2 deletion, so a race can't destroy a live save.
+**Need help syncing**? Open a GitHub issue with your game name + save path example. The recipe file shows where the app looks on disk — if installation varies, override the saved-path field manually.

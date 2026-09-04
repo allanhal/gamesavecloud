@@ -1,0 +1,99 @@
+{
+  "name": "Hyper Echeleon",
+  "slug": "hyper-echeleon",
+  "description": "Sci-fi puzzle adventure from Hyperborea Studios on Epic Games Store",
+  "developer": "Hyperborea Studios", 
+  "publisher": "Epic Games Publishing",
+  "store": "epic",
+  
+  // Windows save paths - user should verify which applies to their install
+  "paths": {
+    "windows": [
+      {
+        "path": "%LOCALAPPDATA%\\HyperEcheleon\\Saved\\SaveGame\\WindowsUserSavedSlot.save",
+        "description": "Standard Epic Games Store installation (Cavedog style)",
+        "verifyCommand": "explorer \"%LOCALAPPDATA%\\HyperEcheleon\\\\\""
+      },
+      {
+        "path": "%LOCALAPPDATA%\\EpicGames\\HyperBorea\\HyperEcheleon\\Saved\\",
+        "description": "Nested Epic Games directory structure",
+        "verifyCommand": "explorer \"%LOCALAPPDATA%\\EpicGames\\\\\""
+      },
+      {
+        "path": "%USERPROFILE%\\.LocalShare\\SavedGame\\HyperEcheleon\\SaveSlot1.save",
+        "description": "Windows Local Shares (common Epic pattern)",
+        "verifyCommand": "powershell \"Get-ChildItem $env:LOCALAPPDATA\\\\gamesavecloud\\\\*\""
+      }
+    ],
+    "macos": [
+      {
+        "path": "~/Library/Application Support/HyperEcheleon/Saved/",
+        "description": "Standard macOS Application Support location"
+      },
+      {
+        "path": "~/Library/Application Support/Epic Games/HyperBorea/HyperEcheleon/",
+        "description": "App-specific folder under Epic Games support"
+      }
+    ],
+    "linux": [
+      {
+        "path": "~/.config/HyperEcheleon/Saved/",
+        "description": "XDG standard config location",
+        "verifyCommand": "ls ~/.config/HyperEcheleon 2>/dev/null && echo \"Config found at: ~/.config/HyperEcheleon\""
+      },
+      {
+        "path": "$HOME/.var/app/com.epicgames.hyperecheleon/saved/",
+        "description": "Flatpak/Gnome Software default location"
+      }
+    ]
+  },
+  
+  // Detection hints - help user identify their install type
+  "detectionHints": {
+    "epicGamesLibraryFolder": true,
+    "steamCloudDetected": false,
+    "oneDriveSynced": "check_manually",
+    "commonSymptoms": [
+      "Game launches via Epic Games Launcher on Windows",
+      "Save files appear in LOCALAPPDATA folder after first play session",
+      "No automatic cloud sync needed (manual backup to R2)"
+    ]
+  },
+  
+  // File pattern matching for game saves
+  "patterns": {
+    "fileExtensions": [".save", ".sav", ".json"],
+    "folderNames": ["SaveGame", "GameInstance/"],
+    "excludePatterns": [
+      "**/*.bak",
+      "**/~*",
+      "**/.backup"
+    ]
+  },
+  
+  // Metadata this game typically stores
+  "metadataFields": [
+    "levelProgress",
+    "score",
+    "completedPuzzlesCount",
+    "characterLevel",
+    "inventoryState"
+  ],
+  
+  // Estimated storage per slot (rough guess for new indie title)
+  "estimatedStoragePerSlotBytes": 524288, // ~500KB typical puzzle game save
+  "recommendedRetentionDays": 14,
+  
+  // Manual override instructions for users
+  "setupNotes": {
+    "quickStart": [
+      "1. Install Hyper Echeleon from Epic Games Store",
+      "2. Play through tutorial or main level once",
+      "3. Verify save folder using verification command in paths.windows[0]",
+      "4. Update 'path' field if actual location differs",
+      "5. Run: gamesync add-recipe hyper-echeleon -f this-file.json"
+    ],
+    "overrideInstructions": "If game installs to a different location, update the 'paths' object with your actual directory path.",
+    "verifySaveExists": "Before syncing, confirm save file exists at listed path. Empty saves are valid and should still sync."
+  }
+}
