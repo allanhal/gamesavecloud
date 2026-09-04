@@ -2,17 +2,13 @@
   "name": "@gsc/desktop",
   "version": "0.4.12",
   "private": true,
-  "description": "gamesavecloud — cloud saves for PC games",
+  "description": "gamesavecloud — cloud saves for PC via R2 central storage",
   "author": "Allan Pinheiro <allan.hal@gmail.com>",
   "main": "dist/main.cjs",
   "scripts": {
-    "build": "node build.mjs && electron-builder -c.electron.build.executableName=gamesavecloud-cloud-saves",
-    "dist": "electron-builder --dir -c.electron.build.executableName=gamesavecloud-cloud-saves-win",
-    "dev": "node build.mjs && electron .",
-    "test": "node --import tsx --test \"packages/**/*.test.ts\" \"src/**/*.test.ts\"",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/server/migrate.ts",
-    "launch": "electron dist/main.cjs",
+    "build": "node build.mjs && electron-builder -c.electron.dist=dist --win portable,exe",
+    "dist": "electron-builder --dir --win portable,exe",  
+    "test": "tsx src/server/migrate.ts && pnpm exec tsx --test \"packages/**/*.test.ts\"",
     "release": "tsx scripts/publish-release.ts"
   },
   "dependencies": {
@@ -20,26 +16,8 @@
     "@gsc/recipes": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "*",
-    "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2",
     "electron": "^33.3.1",
     "electron-builder": "^25.1.8",
-    "esbuild": "^0.24.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "build": {
-    "appId": "com.gamesavecloud.app",
-    "productName": "gamesavecloud",
-    "directories": {
-      "output": "release",
-      "buildResources": "resources"
-    },
-    "extraResources": ["packages/recipes/**/*.json"],
-    "win": {
-      "target": ["portable", "singleExecutable"],
-      "icon": "apps/desktop/icons/window.ico"
-    }
+    "@types/node": "*"
   }
 }
