@@ -1,18 +1,18 @@
 {
   "name": "@gsc/desktop",
-  "version": "0.4.13",
+  "version": "0.4.12",
   "private": true,
   "description": "gamesavecloud — cloud saves for PC games",
   "author": "Allan Pinheiro <allan.hal@gmail.com>",
   "main": "dist/main.cjs",
   "scripts": {
+    "build": "node build.mjs && electron-builder -c.electron.build.executableName=gamesavecloud-cloud-saves",
+    "dist": "electron-builder --dir -c.electron.build.executableName=gamesavecloud-cloud-saves-win",
     "dev": "node build.mjs && electron .",
-    "build": "node build.mjs",
-    "start": "electron dist/main.cjs",
     "test": "node --import tsx --test \"packages/**/*.test.ts\" \"src/**/*.test.ts\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/server/migrate.ts",
-    "cli": "pxpm exec -F @gsc/cli start",
+    "launch": "electron dist/main.cjs",
     "release": "tsx scripts/publish-release.ts"
   },
   "dependencies": {
@@ -28,5 +28,18 @@
     "esbuild": "^0.24.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "build": {
+    "appId": "com.gamesavecloud.app",
+    "productName": "gamesavecloud",
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "extraResources": ["packages/recipes/**/*.json"],
+    "win": {
+      "target": ["portable", "singleExecutable"],
+      "icon": "apps/desktop/icons/window.ico"
+    }
   }
 }
