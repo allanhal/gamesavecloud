@@ -3,21 +3,30 @@
   "version": "0.4.12",
   "private": true,
   "description": "gamesavecloud — cloud saves for PC games",
-  "author": "gamesavecloud",
+  "author": "Allan Pinheiro <allan.hal@gmail.com>",
   "main": "dist/main.cjs",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node build.mjs && electron .",
+    "build": "node build.mjs",
+    "start": "electron dist/main.cjs",
     "test": "node --import tsx --test \"packages/**/*.test.ts\" \"src/**/*.test.ts\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/server/migrate.ts",
-    "cli": "pnpm -F @gsc/cli start",
+    "cli": "pxpm exec -F @gsc/cli start",
     "release": "tsx scripts/publish-release.ts"
   },
   "dependencies": {
     "@gsc/core": "workspace:*",
     "@gsc/recipes": "workspace:*"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/node": "*",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
 }
