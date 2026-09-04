@@ -195,3 +195,11 @@ First working release.
 - Installers are unsigned, so Windows SmartScreen warns on first run
 - No auto-update feed yet
 - gzip is the only compression codec; the `codec` column allows adding zstd later
+## Build Log ### 2024-12-XX
+
+### Release: desktop-v0.19.0 (hypothetical version)
+
+- CI build from commit e65e970 + dummy change
+- Portable ZIPs published to GitHub Releases
+- Windows x64, macOS ARM64, Linux static builds
+
