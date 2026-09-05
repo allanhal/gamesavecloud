@@ -175,16 +175,20 @@ async function statusAll() {
     try { remote = await api.latest(g.id, g.slot); } catch { offline = true; }
     const remoteHash = remote.files.length ? manifestHashSync(remote.files) : "";
 
+    // newest file mtime on disk vs the time the cloud version was saved — both
+    // are the save's own "last modified", so comparing them says which is newer
+    const localModified = local.length ? Math.max(...local.map((f) => f.mtimeMs)) : null;
+    const cloudModified = remote.createdAt ?? null;
+    const cloudMs = cloudModified ? new Date(cloudModified).getTime() : 0;
+
     let status = "unknown";
     if (!exists) status = "no-folder";
     else if (offline) status = "offline";
     else if (localHash === remoteHash && remote.version > 0) status = "in-sync";
     else if (remote.version === 0) status = "never-uploaded";
-    else {
-      const lc = localHash !== (prev?.syncedManifestHash ?? "");
-      const rc = remote.version !== (prev?.syncedVersion ?? 0);
-      status = lc && rc ? "conflict" : lc ? "local-ahead" : "cloud-ahead";
-    }
+    // they differ: whichever save was modified more recently is the newer one.
+    // no "conflict" — the user decides with Send to cloud / Override local.
+    else status = (localModified ?? 0) >= cloudMs ? "local-newer" : "cloud-newer";
 
     return {
       ...g, status,
@@ -193,9 +197,9 @@ async function statusAll() {
       localSize: local.reduce((n, f) => n + f.size, 0),
       localVersion: prev?.syncedVersion ?? 0,
       cloudVersion: remote.version,
-      // newest file mtime on disk vs the time the cloud version was saved
-      localModified: local.length ? Math.max(...local.map((f) => f.mtimeMs)) : null,
-      cloudModified: remote.createdAt ?? null,
+      localModified,
+      cloudModified,
+      cloudSize: remote.totalSize ?? null,
       running: g.installDir ? await isGameRunning(g.installDir) : false,
     };
   }));

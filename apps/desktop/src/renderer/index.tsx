@@ -34,9 +34,8 @@ const duration = (secs: number) => {
 
 const STATUS: Record<string, { label: string; color: string }> = {
   "in-sync": { label: "In sync", color: "var(--accent)" },
-  "local-ahead": { label: "Local changes", color: "var(--warn)" },
-  "cloud-ahead": { label: "Cloud is newer", color: "#5aa9e6" },
-  "conflict": { label: "Conflict", color: "var(--danger)" },
+  "local-newer": { label: "Local newer than cloud", color: "var(--warn)" },
+  "cloud-newer": { label: "Cloud newer than local", color: "#5aa9e6" },
   "never-uploaded": { label: "Not uploaded", color: "var(--warn)" },
   "no-folder": { label: "Folder missing", color: "var(--danger)" },
   "offline": { label: "Offline", color: "var(--muted)" },
@@ -544,9 +543,18 @@ function App() {
                 <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                   local v{g.localVersion} · cloud v{g.cloudVersion}
                   {g.cloudModified
-                    ? <> · cloud save from <span title={new Date(g.cloudModified).toISOString()}>{new Date(g.cloudModified).toLocaleString()}</span> ({ago(g.cloudModified)})</>
+                    ? <> · cloud save from <span title={new Date(g.cloudModified).toISOString()}>{new Date(g.cloudModified).toLocaleString()}</span> ({ago(g.cloudModified)}) · {bytes(g.cloudSize ?? 0)}</>
                     : <> · nothing in the cloud yet</>}
                 </div>
+                {(g.status === "local-newer" || g.status === "cloud-newer") && g.cloudSize != null && (
+                  <div style={{ fontSize: 12, marginTop: 3, color: g.localSize >= g.cloudSize ? "var(--warn)" : "#5aa9e6" }}>
+                    {g.localSize > g.cloudSize
+                      ? `This PC's save is larger by ${bytes(g.localSize - g.cloudSize)} — usually more progress`
+                      : g.localSize < g.cloudSize
+                        ? `The cloud save is larger by ${bytes(g.cloudSize - g.localSize)} — usually more progress`
+                        : "Both saves are the same size — compare the save times to choose"}
+                  </div>
+                )}
                 <div className="mono muted" style={{ marginTop: 3, overflowWrap: "anywhere" }}>{g.path}</div>
                 {progress[g.id] && <Progress p={progress[g.id]} />}
               </div>
@@ -570,19 +578,6 @@ function App() {
                 </button>
               </div>
             </div>
-
-            {g.status === "conflict" && (
-              <div className="panel" style={{ padding: 10, marginTop: 10, borderColor: "rgba(229,72,77,.4)" }}>
-                <div style={{ color: "var(--danger)", fontWeight: 600, fontSize: 13 }}>
-                  This PC and the cloud both changed since the last sync.
-                </div>
-                <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-                  Compare the save times above, then use <strong>Send to cloud</strong> to keep this
-                  PC's save or <strong>Override local with latest cloud save</strong> to take the
-                  cloud one. The other stays in history.
-                </div>
-              </div>
-            )}
 
             {g.status === "no-folder" && (
               <div className="row" style={{ marginTop: 8 }}>

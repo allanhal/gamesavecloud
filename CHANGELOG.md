@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.21 — 2026-09-05
+
+### Changed
+- **No more "conflict" status.** When local and cloud differ, the status now
+  says which is newer by save time — **Local newer than cloud** or **Cloud newer
+  than local** — and you choose with the two buttons. Removed the conflict panel.
+- **Progress hint from save size.** Cards show the cloud save's size alongside
+  the local one, and when they differ, a line notes which save is larger
+  ("usually more progress") — a heuristic, since bigger saves generally mean
+  further along.
+
 ## 0.4.20 — 2026-09-05
 
 ### Changed
