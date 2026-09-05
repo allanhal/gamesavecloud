@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.17 — 2026-09-05
+
+### Changed
+- **Back to a single portable `.exe`.** Ship one file:
+  `gamesavecloud-<ver>-x64-portable.exe` — no zip, no installer. (The portable
+  target is a self-extracting exe: it unpacks to temp and runs; data stays in
+  `gamesavecloud-data` beside the exe.) Keeps the embedded app icon.
+
 ## 0.4.16 — 2026-09-05
 
 ### Changed

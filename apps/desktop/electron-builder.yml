@@ -1,6 +1,5 @@
-# Ship one thing: a zip of the app for Windows x64. Extract it and run
-# gamesavecloud.exe directly — no installer, no self-extraction, no auto-update.
-# Data is kept in gamesavecloud-data beside the exe (portable).
+# Ship one thing: a single portable .exe for Windows x64. No installer, no
+# auto-update. Data is kept in gamesavecloud-data beside the exe (portable).
 appId: dev.gamesavecloud.desktop
 productName: gamesavecloud
 directories:
@@ -14,8 +13,8 @@ extraFiles:
   - portable.txt
 win:
   target:
-    - target: zip
+    - target: portable
       arch: [x64]
-  artifactName: gamesavecloud-${version}-${arch}.${ext}
+  artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
 compression: normal
 publish: null
