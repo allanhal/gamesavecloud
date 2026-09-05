@@ -417,16 +417,12 @@ function App() {
   const [historyFor, setHistoryFor] = useState<any>(null);
   const [progress, setProgress] = useState<Record<string, ProgressEntry>>({});
   const [syncing, setSyncing] = useState(false);
-  const [cloud, setCloud] = useState<any[]>([]);
-  const [adopting, setAdopting] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const c = await gsc().getConfig();
     setCfg(c);
     if (!c) return;
     setGames(await gsc().status());
-    // saves synced from another PC show up here until this one adopts them
-    gsc().cloudGames().then(setCloud).catch(() => setCloud([]));
   }, []);
 
   useEffect(() => {
@@ -435,15 +431,6 @@ function App() {
     gsc().onDone(() => { setProgress({}); setSyncing(false); refresh(); });
     gsc().onBackground(() => refresh());
   }, [refresh]);
-
-  const adopt = async (g: any, useFolder?: string) => {
-    const folder = useFolder ?? g.suggestedPath ?? await gsc().pickFolder();
-    if (!folder) return;
-    setAdopting(g.id);
-    try { await gsc().adopt(g, folder); await refresh(); }
-    catch (e: any) { alert(e.message); }
-    finally { setAdopting(null); }
-  };
 
   const syncAll = async () => {
     setSyncing(true);
@@ -484,53 +471,7 @@ function App() {
       </p>
       <StatusLine />
 
-      {cloud.length > 0 && (
-        <div className="panel" style={{ padding: 14, marginTop: 16, borderColor: "rgba(90,169,230,.4)" }}>
-          <strong style={{ fontSize: 14 }}>In your cloud, not set up on this PC</strong>
-          <div className="muted" style={{ fontSize: 13, margin: "2px 0 10px" }}>
-            These have saves in the cloud from another machine. Pick where each one lives
-            here and it will be pulled down.
-          </div>
-          <div style={{ display: "grid", gap: 8 }}>
-            {cloud.map((g) => (
-              <div key={g.id} className="row" style={{ justifyContent: "space-between", gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div className="row" style={{ gap: 8 }}>
-                    <strong>{g.name}</strong>
-                    {g.source && <span className="pill muted">{g.source}</span>}
-                  </div>
-                  <div className="mono muted" style={{ fontSize: 12, marginTop: 2, overflowWrap: "anywhere" }}>
-                    {g.suggestedPath
-                      ?? (g.plannedPath
-                        ? `${g.plannedPath} — not created yet`
-                        : "no save folder found here — choose one")}
-                  </div>
-                  {!g.suggestedPath && g.plannedPath && (
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                      The game is installed but has never saved. Restoring creates that
-                      folder, the same one it would write to itself.
-                    </div>
-                  )}
-                </div>
-                <div className="row" style={{ gap: 6, flexShrink: 0 }}>
-                  {(g.suggestedPath || g.plannedPath) && (
-                    <button className="primary" disabled={adopting === g.id}
-                      onClick={() => adopt(g, g.suggestedPath ?? g.plannedPath)}>
-                      {adopting === g.id ? "Setting up…" : g.suggestedPath ? "Set up here" : "Create folder and restore"}
-                    </button>
-                  )}
-                  <button disabled={adopting === g.id} onClick={async () => {
-                    const f = await gsc().pickFolder();
-                    if (f) adopt(g, f);
-                  }}>Choose folder…</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {games.length === 0 && cloud.length === 0 && (
+      {games.length === 0 && (
         <div className="panel" style={{ padding: 32, textAlign: "center", marginTop: 20 }}>
           <p style={{ margin: 0, fontWeight: 600 }}>No games yet</p>
           <p className="muted">Scan Steam and Epic to find your installed games.</p>

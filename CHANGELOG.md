@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.18 — 2026-09-05
+
+### Removed
+- **"In your cloud, not set up on this PC" section.** Dropped that dashboard
+  panel and its `games:cloud` / `games:adopt` IPC — games are set up via the
+  Library scan instead.
+
 ## 0.4.17 — 2026-09-05
 
 ### Changed
