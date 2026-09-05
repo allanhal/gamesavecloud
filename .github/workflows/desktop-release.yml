@@ -65,7 +65,7 @@ jobs:
       - name: Typecheck
         run: pnpm exec tsc --noEmit -p tsconfig.json
 
-      - name: Build portable (zip + single exe)
+      - name: Build (Windows x64 zip)
         run: pnpm -F @gsc/desktop dist
         env:
           # electron-builder publishes only when we ask it to
@@ -98,7 +98,7 @@ jobs:
       - name: Report signing status
         shell: pwsh
         run: |
-          $exe = Get-ChildItem apps/desktop/release/*-portable.exe | Select-Object -First 1
+          $exe = Get-ChildItem apps/desktop/release/win-unpacked/gamesavecloud.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           $sig = if ($exe) { (Get-AuthenticodeSignature $exe.FullName).Status } else { "no exe" }
           Write-Host "signature status: $sig"
           if ($sig -ne "Valid") {
@@ -108,8 +108,8 @@ jobs:
       - name: Verify the artifacts were produced
         shell: pwsh
         run: |
-          $files = Get-ChildItem apps/desktop/release/*-portable.*
-          if (-not $files) { throw "no portable artifacts produced" }
+          $files = Get-ChildItem apps/desktop/release/* -Include *.zip,*.exe
+          if (-not $files) { throw "no artifacts produced" }
           foreach ($f in $files) { Write-Host "built $($f.Name) — $([math]::Round($f.Length/1MB)) MB" }
 
       - uses: actions/upload-artifact@v4

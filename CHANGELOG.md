@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.15 — 2026-09-05
+## 0.4.16 — 2026-09-05
 
 ### Changed
 - **Ship a plain executable, not a self-extracting portable.** The build is now
@@ -8,6 +8,11 @@
   `gamesavecloud.exe` — it runs instantly, no self-extraction on each launch and
   none of the installer-like feel the `portable` target had. Still no installer,
   still portable (data stays in `gamesavecloud-data` beside the exe).
+- **App icon** embedded in the exe (cloud + download mark).
+
+### Fixed
+- CI verify/signing steps looked for `*-portable.*`; updated them for the zip
+  artifact so the release publishes.
 
 ## 0.4.14 — 2026-09-05
 
