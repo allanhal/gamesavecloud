@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.15 — 2026-09-05
+
+### Changed
+- **Ship a plain executable, not a self-extracting portable.** The build is now
+  a single `gamesavecloud-<ver>-x64.zip`: extract once and double-click
+  `gamesavecloud.exe` — it runs instantly, no self-extraction on each launch and
+  none of the installer-like feel the `portable` target had. Still no installer,
+  still portable (data stays in `gamesavecloud-data` beside the exe).
+
 ## 0.4.14 — 2026-09-05
 
 ### Changed
