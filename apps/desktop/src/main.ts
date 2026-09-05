@@ -63,14 +63,32 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 function createWindow() {
+  // a tiny splash paints immediately, so the ~second of cold start and first
+  // render doesn't look like the app failed to open
+  const splash = new BrowserWindow({
+    width: 300, height: 200, frame: false, resizable: false, movable: false,
+    center: true, alwaysOnTop: true, skipTaskbar: true, backgroundColor: "#14161c",
+    webPreferences: { contextIsolation: true },
+  });
+  splash.loadFile(path.join(__dirname, "splash.html"));
+
   win = new BrowserWindow({
     width: 1040, height: 720, minWidth: 860, minHeight: 560,
     backgroundColor: "#14161c",
     title: "gamesavecloud",
     autoHideMenuBar: true,
+    show: false,   // stay hidden behind the splash until the first paint is ready
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false },
   });
   win.loadFile(path.join(__dirname, "index.html"));
+  // reveal on first paint; a timeout is the safety net so a missed ready-to-show
+  // can never leave the app stuck behind the splash
+  const reveal = () => {
+    if (win && !win.isVisible()) win.show();
+    if (!splash.isDestroyed()) splash.destroy();
+  };
+  win.once("ready-to-show", reveal);
+  setTimeout(reveal, 8000);
   // closing the window closes the app: a process that outlives its window keeps
   // the install folder locked on Windows, and nothing on screen says why
   win.on("closed", () => { win = null; });

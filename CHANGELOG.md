@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.19 — 2026-09-05
+
+### Added
+- **Splash screen** on startup so the cold-start second doesn't look like a
+  failed launch. The main window stays hidden behind it until the first paint.
+- **Loading states on buttons** for slow actions — Play → "Playing…", Sync →
+  "Syncing…", conflict resolve → "Keeping…", Restore → "Restoring…".
+- **History has a column header** (Version · When it was saved · Size · Saved by)
+  and a one-line explanation of what versions are and what Restore does.
+
 ## 0.4.18 — 2026-09-05
 
 ### Removed

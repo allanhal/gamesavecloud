@@ -24,6 +24,7 @@ await esbuild.build({
   loader: { ".css": "css" }, logLevel: "info",
 });
 fs.copyFileSync("src/renderer/index.html", "dist/index.html");
+fs.copyFileSync("src/renderer/splash.html", "dist/splash.html");
 
 // recipes stay loose .json beside the bundle so new games need no rebuild
 const recipeSrc = "../../packages/recipes/games";

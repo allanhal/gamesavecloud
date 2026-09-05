@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #14161c; color: #e8eaed;
+    font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; user-select: none; -webkit-user-select: none;
+    border: 1px solid rgba(255,255,255,.08); border-radius: 12px; box-sizing: border-box;
+  }
+  img { width: 72px; height: 72px; }
+  .name { font-size: 16px; font-weight: 600; letter-spacing: .2px; }
+  .msg { font-size: 12px; color: #9aa0a6; }
+  .bar { width: 140px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; margin-top: 2px; }
+  .bar > i { display: block; width: 40%; height: 100%; background: #4f79e6; border-radius: 2px; animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+</style>
+</head>
+<body>
+  <img src="data:image/png;base64,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" alt="" />
+  <div class="name">gamesavecloud</div>
+  <div class="msg">Starting up — loading your library…</div>
+  <div class="bar"><i></i></div>
+</body>
+</html>

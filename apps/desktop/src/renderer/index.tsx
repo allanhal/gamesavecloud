@@ -306,16 +306,16 @@ function Library({ onClose, onAdded }: { onClose: () => void; onAdded: () => voi
 
 function History({ game, onClose }: { game: any; onClose: () => void }) {
   const [h, setH] = useState<any>(null);
-  const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState<number | null>(null);
 
   useEffect(() => { gsc().history(game.id).then(setH); }, [game.id]);
 
   const restore = async (v: number) => {
     if (!confirm(`Restore version ${v}?\n\nYour current save is copied to the backups folder first, and this is recorded as a new version — nothing is deleted.`)) return;
-    setBusy(true);
+    setRestoring(v);
     try { await gsc().restore(game.id, v); onClose(); }
     catch (e: any) { alert(e.message); }
-    finally { setBusy(false); }
+    finally { setRestoring(null); }
   };
 
   return (
@@ -324,25 +324,49 @@ function History({ game, onClose }: { game: any; onClose: () => void }) {
         <h2 style={{ margin: 0, fontSize: 17 }}>{game.name} — history</h2>
         <button onClick={onClose}>Back</button>
       </div>
+      <p className="muted" style={{ fontSize: 13, marginTop: 8, maxWidth: 660 }}>
+        Every sync saves a snapshot here. Restore any version to roll this PC's save
+        back to it — your current save is backed up first and the restore is recorded
+        as a new version, so nothing is ever deleted.
+      </p>
+
       {!h && <p className="muted">Loading…</p>}
-      <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
-        {h?.snapshots?.map((s: any) => (
-          <div key={s.id} className="panel row" style={{ padding: "10px 12px", justifyContent: "space-between" }}>
-            <div className="row" style={{ gap: 12 }}>
-              <strong style={{ width: 44 }}>v{s.version}</strong>
-              {s.version === h.currentVersion && <span className="pill" style={{ color: "var(--accent)", borderColor: "var(--accent)66" }}>current</span>}
-              {s.pinned && <span className="pill muted">pinned</span>}
-              <span className="muted" title={new Date(s.createdAt).toISOString()}>
-                {ago(s.createdAt)} · {new Date(s.createdAt).toLocaleString()}
-              </span>
-              <span className="muted">{bytes(Number(s.totalSize))}</span>
-              <span className="muted">{s.device}</span>
-            </div>
-            {s.version !== h.currentVersion &&
-              <button disabled={busy} onClick={() => restore(s.version)}>Restore</button>}
+
+      {h?.snapshots?.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          {/* column header, so the row of numbers below is legible */}
+          <div className="row muted" style={{ fontSize: 12, padding: "0 12px 6px", gap: 12, borderBottom: "1px solid var(--line)" }}>
+            <span style={{ width: 52 }}>Version</span>
+            <span style={{ flex: 1 }}>When it was saved</span>
+            <span style={{ width: 84, textAlign: "right" }}>Size</span>
+            <span style={{ width: 150 }}>Saved by</span>
+            <span style={{ width: 84 }} />
           </div>
-        ))}
-      </div>
+
+          <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
+            {h.snapshots.map((s: any) => (
+              <div key={s.id} className="panel row" style={{ padding: "10px 12px", gap: 12, alignItems: "center" }}>
+                <strong style={{ width: 52 }}>v{s.version}</strong>
+                <span className="muted row" style={{ flex: 1, gap: 8, minWidth: 0 }} title={new Date(s.createdAt).toISOString()}>
+                  {ago(s.createdAt)} · {new Date(s.createdAt).toLocaleString()}
+                  {s.version === h.currentVersion && <span className="pill" style={{ color: "var(--accent)", borderColor: "var(--accent)66" }}>current</span>}
+                  {s.pinned && <span className="pill muted">pinned</span>}
+                </span>
+                <span className="muted" style={{ width: 84, textAlign: "right" }}>{bytes(Number(s.totalSize))}</span>
+                <span className="muted" style={{ width: 150, overflowWrap: "anywhere" }}>{s.device}</span>
+                <span style={{ width: 84, textAlign: "right" }}>
+                  {s.version !== h.currentVersion &&
+                    <button disabled={restoring !== null} onClick={() => restore(s.version)}>
+                      {restoring === s.version ? "Restoring…" : "Restore"}
+                    </button>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {h?.snapshots?.length === 0 && <p className="muted" style={{ marginTop: 12 }}>No versions yet.</p>}
     </div>
   );
 }
@@ -417,6 +441,14 @@ function App() {
   const [historyFor, setHistoryFor] = useState<any>(null);
   const [progress, setProgress] = useState<Record<string, ProgressEntry>>({});
   const [syncing, setSyncing] = useState(false);
+  // per-button "in progress" flags, keyed by "<action>:<id>" so one busy button
+  // never freezes the rest of the UI
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  const run = useCallback(async (key: string, fn: () => Promise<void>) => {
+    setPending((p) => ({ ...p, [key]: true }));
+    try { await fn(); }
+    finally { setPending((p) => { const n = { ...p }; delete n[key]; return n; }); }
+  }, []);
 
   const refresh = useCallback(async () => {
     const c = await gsc().getConfig();
@@ -498,9 +530,16 @@ function App() {
               </div>
 
               <div className="row" style={{ gap: 6, flexShrink: 0 }}>
-                {g.appId && <button disabled={g.running} onClick={() => launch(g.id)}>Play</button>}
+                {g.appId && (
+                  <button disabled={g.running || pending[`launch:${g.id}`]}
+                    onClick={() => run(`launch:${g.id}`, () => launch(g.id))}>
+                    {pending[`launch:${g.id}`] ? "Playing…" : "Play"}
+                  </button>
+                )}
                 <button onClick={() => setHistoryFor(g)}>History</button>
-                <button disabled={syncing} onClick={() => syncOne(g.id)}>Sync</button>
+                <button disabled={syncing} onClick={() => run(`sync:${g.id}`, () => syncOne(g.id))}>
+                  {pending[`sync:${g.id}`] ? "Syncing…" : "Sync"}
+                </button>
               </div>
             </div>
 
@@ -513,8 +552,12 @@ function App() {
                   Pick one. The other is kept in history and can be restored later.
                 </div>
                 <div className="row">
-                  <button onClick={() => syncOne(g.id, "local")}>Keep this PC's save</button>
-                  <button onClick={() => syncOne(g.id, "remote")}>Keep the cloud save</button>
+                  <button disabled={syncing} onClick={() => run(`sync:${g.id}`, () => syncOne(g.id, "local"))}>
+                    {pending[`sync:${g.id}`] ? "Keeping…" : "Keep this PC's save"}
+                  </button>
+                  <button disabled={syncing} onClick={() => run(`sync:${g.id}`, () => syncOne(g.id, "remote"))}>
+                    {pending[`sync:${g.id}`] ? "Keeping…" : "Keep the cloud save"}
+                  </button>
                 </div>
               </div>
             )}
