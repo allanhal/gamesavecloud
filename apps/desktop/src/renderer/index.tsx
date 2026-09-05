@@ -480,6 +480,19 @@ function App() {
     refresh();
   };
 
+  // push this PC's save up, warning first only if the cloud copy is newer
+  const sendToCloud = async (g: any) => {
+    if (g.cloudModified && g.localModified && new Date(g.cloudModified).getTime() > g.localModified &&
+        !confirm("The cloud save is newer than this PC's. Send anyway and overwrite the cloud version?")) return;
+    await syncOne(g.id, "local");
+  };
+
+  // pull the cloud save down over the local one (local is backed up first)
+  const overrideLocal = async (g: any) => {
+    if (!confirm("Override this PC's save with the latest cloud version?\n\nYour current local save is copied to the backups folder first, so it can be restored.")) return;
+    await syncOne(g.id, "remote");
+  };
+
   if (cfg === undefined) return <p className="muted" style={{ padding: 24 }}>Loading…</p>;
   if (!cfg) return <Setup onDone={refresh} />;
   if (historyFor) return <History game={historyFor} onClose={() => { setHistoryFor(null); refresh(); }} />;
@@ -523,13 +536,22 @@ function App() {
                   <span className="pill muted">{g.source}</span>
                 </div>
                 <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>
-                  local v{g.localVersion} · cloud v{g.cloudVersion} · {g.localFiles} files · {bytes(g.localSize)}
+                  {g.localFiles} files · {bytes(g.localSize)}
+                  {g.localModified != null
+                    ? <> · this PC last saved <span title={new Date(g.localModified).toISOString()}>{new Date(g.localModified).toLocaleString()}</span> ({ago(g.localModified)})</>
+                    : <> · no local save</>}
+                </div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                  local v{g.localVersion} · cloud v{g.cloudVersion}
+                  {g.cloudModified
+                    ? <> · cloud save from <span title={new Date(g.cloudModified).toISOString()}>{new Date(g.cloudModified).toLocaleString()}</span> ({ago(g.cloudModified)})</>
+                    : <> · nothing in the cloud yet</>}
                 </div>
                 <div className="mono muted" style={{ marginTop: 3, overflowWrap: "anywhere" }}>{g.path}</div>
                 {progress[g.id] && <Progress p={progress[g.id]} />}
               </div>
 
-              <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+              <div className="row" style={{ gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 380 }}>
                 {g.appId && (
                   <button disabled={g.running || pending[`launch:${g.id}`]}
                     onClick={() => run(`launch:${g.id}`, () => launch(g.id))}>
@@ -537,8 +559,14 @@ function App() {
                   </button>
                 )}
                 <button onClick={() => setHistoryFor(g)}>History</button>
-                <button disabled={syncing} onClick={() => run(`sync:${g.id}`, () => syncOne(g.id))}>
-                  {pending[`sync:${g.id}`] ? "Syncing…" : "Sync"}
+                <button className="primary" disabled={syncing}
+                  onClick={() => run(`send:${g.id}`, () => sendToCloud(g))}>
+                  {pending[`send:${g.id}`] ? "Sending…" : "Send to cloud"}
+                </button>
+                <button disabled={syncing || g.cloudVersion === 0}
+                  title={g.cloudVersion === 0 ? "Nothing in the cloud yet" : undefined}
+                  onClick={() => run(`pull:${g.id}`, () => overrideLocal(g))}>
+                  {pending[`pull:${g.id}`] ? "Overriding…" : "Override local with latest cloud save"}
                 </button>
               </div>
             </div>
@@ -548,16 +576,10 @@ function App() {
                 <div style={{ color: "var(--danger)", fontWeight: 600, fontSize: 13 }}>
                   This PC and the cloud both changed since the last sync.
                 </div>
-                <div className="muted" style={{ fontSize: 13, margin: "4px 0 8px" }}>
-                  Pick one. The other is kept in history and can be restored later.
-                </div>
-                <div className="row">
-                  <button disabled={syncing} onClick={() => run(`sync:${g.id}`, () => syncOne(g.id, "local"))}>
-                    {pending[`sync:${g.id}`] ? "Keeping…" : "Keep this PC's save"}
-                  </button>
-                  <button disabled={syncing} onClick={() => run(`sync:${g.id}`, () => syncOne(g.id, "remote"))}>
-                    {pending[`sync:${g.id}`] ? "Keeping…" : "Keep the cloud save"}
-                  </button>
+                <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+                  Compare the save times above, then use <strong>Send to cloud</strong> to keep this
+                  PC's save or <strong>Override local with latest cloud save</strong> to take the
+                  cloud one. The other stays in history.
                 </div>
               </div>
             )}

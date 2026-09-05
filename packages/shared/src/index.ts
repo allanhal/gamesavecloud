@@ -31,6 +31,10 @@ export const SnapshotReq = z.object({
   files: z.array(FileEntry).max(5000),
   device: z.string().max(64).optional(),
   playtimeSeconds: z.number().int().nonnegative().optional(),
+  /** the save's own "last modified" time (newest file mtime), ISO 8601. Used as
+   * the version's timestamp so history shows when the save was last played, not
+   * when it happened to be uploaded. */
+  savedAt: z.string().datetime().optional(),
   /** marks pre-launch / pre-restore safety snapshots — never auto-pruned */
   pinned: z.boolean().default(false),
 });

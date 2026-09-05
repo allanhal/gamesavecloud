@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.20 — 2026-09-05
+
+### Changed
+- **Explicit push/pull instead of "Sync".** Each game now has **Send to cloud**
+  (put this PC's save on the server) and **Override local with latest cloud save**
+  (pull the cloud save down; the local one is backed up first). "Send to cloud"
+  warns only if the cloud copy is newer.
+- **Save times are shown and stored.** The card shows when this PC's save was
+  last modified (the save file's own mtime) and when the cloud version was saved.
+  A pushed version is now stamped with the save's last-modified time, so history
+  reads as when the game was last played — not when it was uploaded.
+
 ## 0.4.19 — 2026-09-05
 
 ### Added

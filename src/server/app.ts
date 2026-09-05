@@ -128,6 +128,9 @@ app.post("/snapshots", async (c) => {
       totalSize: body.files.reduce((n, f) => n + f.size, 0),
       fileCount: body.files.length, pinned: body.pinned,
       manifestHash: await manifestHash(body.files),
+      // stamp the version with the save's real "last modified" time when the
+      // client sends it, so history reads as when the game was last played
+      ...(body.savedAt ? { createdAt: new Date(body.savedAt) } : {}),
     }).returning();
 
     if (body.files.length) {

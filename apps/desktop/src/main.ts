@@ -193,6 +193,9 @@ async function statusAll() {
       localSize: local.reduce((n, f) => n + f.size, 0),
       localVersion: prev?.syncedVersion ?? 0,
       cloudVersion: remote.version,
+      // newest file mtime on disk vs the time the cloud version was saved
+      localModified: local.length ? Math.max(...local.map((f) => f.mtimeMs)) : null,
+      cloudModified: remote.createdAt ?? null,
       running: g.installDir ? await isGameRunning(g.installDir) : false,
     };
   }));

@@ -156,8 +156,13 @@ async function push(
   }
 
   emit({ phase: "finalizing", message: "writing the snapshot" });
+  // the save's own last-modified time — the newest file wins — so the cloud
+  // version is timestamped by when the game was last played, not the upload
+  const savedAt = local.length
+    ? new Date(Math.max(...local.map((f) => f.mtimeMs))).toISOString()
+    : undefined;
   const res = await api.snapshot({
-    game: game.id, slot: game.slot, baseVersion, files: entries, device, pinned,
+    game: game.id, slot: game.slot, baseVersion, files: entries, device, pinned, savedAt,
   });
   return { version: res.version as number, uploaded: missing.length, uploadedBytes };
 }
