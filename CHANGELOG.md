@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.14 — 2026-09-05
+
+### Changed
+- **Single build target.** Ship one artifact: the Windows x64 portable `.exe`.
+  Dropped arm64 and the redundant combined multi-arch exe that 0.4.13 produced.
+
 ## 0.4.13 — 2026-09-05
 
 ### Fixed

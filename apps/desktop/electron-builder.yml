@@ -13,7 +13,7 @@ extraFiles:
 win:
   target:
     - target: portable
-      arch: [x64, arm64]
+      arch: [x64]
   artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
 portable:
   artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
