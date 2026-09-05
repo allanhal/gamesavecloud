@@ -12,10 +12,8 @@ extraFiles:
   - portable.txt
 win:
   target:
-    - target: zip
-      arch: [x64, arm64]
     - target: portable
-      arch: [x64]
+      arch: [x64, arm64]
   artifactName: gamesavecloud-${version}-${arch}-portable.${ext}
 portable:
   artifactName: gamesavecloud-${version}-${arch}-portable.${ext}

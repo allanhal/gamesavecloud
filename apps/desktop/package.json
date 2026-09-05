@@ -1,23 +1,25 @@
 {
   "name": "@gsc/desktop",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "private": true,
-  "description": "gamesavecloud — cloud saves for PC via R2 central storage",
-  "author": "Allan Pinheiro <allan.hal@gmail.com>",
+  "description": "gamesavecloud — cloud saves for PC games",
+  "author": "gamesavecloud",
   "main": "dist/main.cjs",
   "scripts": {
-    "build": "node build.mjs && electron-builder -c.electron.dist=dist --win portable,exe",
-    "dist": "electron-builder --dir --win portable,exe",  
-    "test": "tsx src/server/migrate.ts && pnpm exec tsx --test \"packages/**/*.test.ts\"",
-    "release": "tsx scripts/publish-release.ts"
-  },
-  "dependencies": {
-    "@gsc/core": "workspace:*",
-    "@gsc/recipes": "workspace:*"
+    "build": "node build.mjs",
+    "dev": "node build.mjs && electron .",
+    "dist": "node dist.mjs",
+    "dist:dir": "node dist.mjs --dir"
   },
   "devDependencies": {
+    "@gsc/core": "workspace:*",
+    "@gsc/recipes": "workspace:*",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
     "electron": "^33.3.1",
     "electron-builder": "^25.1.8",
-    "@types/node": "*"
+    "esbuild": "^0.24.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

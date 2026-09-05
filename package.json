@@ -11,7 +11,6 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/server/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "cli": "pnpm -F @gsc/cli start",
     "desktop": "pnpm -F @gsc/desktop dev",
     "desktop:build": "pnpm -F @gsc/desktop build",
     "desktop:dist": "pnpm -F @gsc/desktop dist",

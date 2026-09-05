@@ -1,10 +1,18 @@
 # Changelog
 
-n## 0.4.12 — 2026-08-XX
+## 0.4.13 — 2026-09-05
 
-### Added
-- **Recipe**: `hyper-echeleon.json` for multiplayer PC synchronization across R2 cloud storage (multi-platform: Windows, macOS, Linux)
-- **Docs**: README walkthrough for non-LAN multi-PC sync with GitHub Releases distribution
+### Fixed
+- **Release build was broken.** The desktop `dist` script had been mangled to
+  `electron-builder --dir --win portable,exe` — an invalid target that failed CI
+  with `Unknown target: portable,exe`, and `--dir` never produced distributable
+  artifacts. Restored `dist` to `node dist.mjs` (build + electron-builder) and
+  put `esbuild`/`react` back in devDependencies.
+
+### Changed
+- **Portable only.** Dropped the `.zip` targets; builds now produce just the
+  portable `.exe` for x64 and arm64. No installer.
+- Removed the `@gsc/cli` package — the desktop app is the supported client.
 
 ## 0.4.12 — 2026-08-25
 
