@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.22 — 2026-09-05
+
+### Changed
+- **Save-size wording is more conservative.** The desktop card now describes a
+  larger save as a weak hint, with save time as the stronger signal. Hyper
+  Echelon's Unity `.dat` saves do not have a public progress schema, so the app
+  should not imply size can reliably tell which save is further along.
+
 ## 0.4.21 — 2026-09-05
 
 ### Changed
@@ -291,4 +299,3 @@ First working release.
 - CI build from commit e65e970 + dummy change
 - Portable ZIPs published to GitHub Releases
 - Windows x64, macOS ARM64, Linux static builds
-

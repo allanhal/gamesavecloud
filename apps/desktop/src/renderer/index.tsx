@@ -549,10 +549,10 @@ function App() {
                 {(g.status === "local-newer" || g.status === "cloud-newer") && g.cloudSize != null && (
                   <div style={{ fontSize: 12, marginTop: 3, color: g.localSize >= g.cloudSize ? "var(--warn)" : "#5aa9e6" }}>
                     {g.localSize > g.cloudSize
-                      ? `This PC's save is larger by ${bytes(g.localSize - g.cloudSize)} — usually more progress`
+                      ? `This PC's save is larger by ${bytes(g.localSize - g.cloudSize)} — a weak hint; save time matters more`
                       : g.localSize < g.cloudSize
-                        ? `The cloud save is larger by ${bytes(g.cloudSize - g.localSize)} — usually more progress`
-                        : "Both saves are the same size — compare the save times to choose"}
+                        ? `The cloud save is larger by ${bytes(g.cloudSize - g.localSize)} — a weak hint; save time matters more`
+                        : "Both saves are the same size — use the save times to choose"}
                   </div>
                 )}
                 <div className="mono muted" style={{ marginTop: 3, overflowWrap: "anywhere" }}>{g.path}</div>
